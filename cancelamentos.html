@@ -1,127 +1,170 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .hidden { display:none; }
-    .erro { color:red; text-align:center; padding:6px; }
+    .hidden{display:none}
+    .erro{color:#d00;text-align:center;padding:10px}
+    .info{color:#334155;text-align:center;padding:8px}
+    .muted{color:#64748b}
+    .link{cursor:pointer;color:#4f46e5;font-weight:600;text-decoration:none}
+    .link:hover{text-decoration:underline}
   </style>
 </head>
 <body>
 
-<!-- POPUP -->
+<!-- POPUP (abre direto nesta página) -->
 <div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
-    <span class="fechar" onclick="fecharPopup()">&times;</span>
+    <span class="fechar" onclick="fecharPopup()">✖</span>
     <h2>Cancelamentos</h2>
+
     <h3>Dias pendentes</h3>
-    <table id="tabelaPendentes">
+    <table id="tbPend">
       <thead>
         <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr><td colspan="3" class="info">Carregando…</td></tr>
+      </tbody>
     </table>
 
-    <a href="#" id="toggleLancados" onclick="toggleLancados(event)">+ Ver lançados</a>
+    <div style="margin:10px 0">
+      <a id="btnToggleLanc" class="link" href="#" onclick="toggleLancados(event)">+ Ver lançados</a>
+    </div>
 
-    <table id="tabelaLancados" class="hidden">
+    <table id="tbLanc" class="hidden">
       <thead>
         <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr><td colspan="3" class="info">—</td></tr>
+      </tbody>
     </table>
 
-    <button class="confirmar" onclick="salvar()">Salvar</button>
-    <div id="msg"></div>
+    <div id="msg" class="muted" style="margin-top:10px"></div>
   </div>
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzy2ul5jlmfVOnT4gJ4XDyjuIEdwrOUfctue9YH5fMIVJ1D6H1YBDPNkEGBcuLCWcYxvA/exec"; // Ex: https://script.google.com/macros/s/AKfycbz.../exec
+  // 🔗 Cole aqui o URL do seu Web App (GAS publicado)
+  const API_URL = "https://script.google.com/macros/s/AKfycbzy2ul5jlmfVOnT4gJ4XDyjuIEdwrOUfctue9YH5fMIVJ1D6H1YBDPNkEGBcuLCWcYxvA/exec";
 
-// Helpers
-function formatarData(iso){
-  if(!iso) return "";
-  const [y,m,d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-function fecharPopup(){
-  document.getElementById("popupCancelamentos").style.display = "none";
-}
-function toggleLancados(e){
-  e.preventDefault();
-  const tabela = document.getElementById("tabelaLancados");
-  tabela.classList.toggle("hidden");
-  document.getElementById("toggleLancados").textContent =
-    tabela.classList.contains("hidden") ? "+ Ver lançados" : "- Ocultar lançados";
-}
+  const elPend = document.querySelector('#tbPend tbody');
+  const elLanc = document.querySelector('#tbLanc tbody');
+  const elMsg  = document.getElementById('msg');
+  const elBtnToggle = document.getElementById('btnToggleLanc');
+  let lancadosCarregados = false;
 
-// Carregar dados ao abrir
-document.addEventListener("DOMContentLoaded", carregarPendentes);
+  function fecharPopup(){
+    document.getElementById('popupCancelamentos').style.display = 'none';
+  }
 
-async function carregarPendentes(){
-  const corpo = document.querySelector("#tabelaPendentes tbody");
-  corpo.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
+  function formatBR(iso){
+    if(!iso || typeof iso !== 'string' || !iso.includes('-')) return '';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
-  try{
-    const resp = await fetch(`${API_URL}?acao=statusCancelamentos`);
-    const data = await resp.json();
-    corpo.innerHTML = "";
+  function formatCurrency(v){
+    // trata null/undefined/string vazia/“0,00”
+    if (v === null || v === undefined || v === '') return '—';
+    const num = Number(v);
+    if (!isFinite(num)) return '—';
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
 
-    if(!data.companies || !data.companies.length){
-      corpo.innerHTML = "<tr><td colspan=3>Nenhum pendente</td></tr>";
-      return;
-    }
+  async function carregarPendentes(){
+    elPend.innerHTML = `<tr><td colspan="3" class="info">Carregando…</td></tr>`;
+    elMsg.textContent = '';
 
-    data.companies.forEach(emp => {
-      emp.pendentes.forEach(dt => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${formatarData(dt)}</td><td>${emp.empresa}</td><td>-</td>`;
-        corpo.appendChild(tr);
+    try{
+      const r = await fetch(`${API_URL}?acao=statusCancelamentos`, { cache: 'no-store' });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const js = await r.json();
+
+      elPend.innerHTML = '';
+      const companies = Array.isArray(js?.companies) ? js.companies : [];
+
+      if (companies.length === 0){
+        elPend.innerHTML = `<tr><td colspan="3" class="info">Nenhum pendente</td></tr>`;
+        return;
+      }
+
+      let totalLinhas = 0;
+      companies.forEach(c => {
+        const pend = Array.isArray(c.pendentes) ? c.pendentes : [];
+        pend.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${formatBR(d)}</td>
+            <td>${c.empresa || ''}</td>
+            <td>—</td>`;
+          elPend.appendChild(tr);
+          totalLinhas++;
+        });
       });
-    });
 
-  }catch(err){
-    corpo.innerHTML = `<tr><td colspan=3 class='erro'>Erro: ${err.message}</td></tr>`;
-  }
-}
+      if (totalLinhas === 0){
+        elPend.innerHTML = `<tr><td colspan="3" class="info">Nenhum pendente</td></tr>`;
+      }
 
-async function carregarLancados(){
-  const corpo = document.querySelector("#tabelaLancados tbody");
-  corpo.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
-  try{
-    const resp = await fetch(`${API_URL}?acao=listarCancelamentos`);
-    const data = await resp.json();
-    corpo.innerHTML = "";
-
-    if(!data.dados || !data.dados.length){
-      corpo.innerHTML = "<tr><td colspan=3>Nenhum lançado</td></tr>";
-      return;
+    }catch(err){
+      elPend.innerHTML = `<tr><td colspan="3" class="erro">Erro: ${err.message || err}</td></tr>`;
     }
-
-    data.dados.forEach(r => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${formatarData(r.data)}</td><td>${r.empresa}</td><td>${r.valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>`;
-      corpo.appendChild(tr);
-    });
-
-  }catch(err){
-    corpo.innerHTML = `<tr><td colspan=3 class='erro'>Erro: ${err.message}</td></tr>`;
   }
-}
 
-function salvar(){
-  document.getElementById("msg").textContent = "✔️ Salvando (demo)";
-}
-
-// Auto-carrega lançados quando expandir
-document.getElementById("toggleLancados").addEventListener("click", ()=>{
-  if(!document.getElementById("tabelaLancados").classList.contains("hidden")){
-    carregarLancados();
+  function toggleLancados(ev){
+    ev?.preventDefault?.();
+    const table = document.getElementById('tbLanc');
+    table.classList.toggle('hidden');
+    const aberto = !table.classList.contains('hidden');
+    elBtnToggle.textContent = aberto ? '− Ocultar lançados' : '+ Ver lançados';
+    if (aberto && !lancadosCarregados) carregarLancados();
   }
-});
+
+  async function carregarLancados(){
+    elLanc.innerHTML = `<tr><td colspan="3" class="info">Carregando…</td></tr>`;
+    elMsg.textContent = '';
+
+    try{
+      const r = await fetch(`${API_URL}?acao=listarCancelamentos`, { cache: 'no-store' });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const js = await r.json();
+
+      elLanc.innerHTML = '';
+      const dados = Array.isArray(js?.dados) ? js.dados : [];
+
+      if (dados.length === 0){
+        elLanc.innerHTML = `<tr><td colspan="3" class="info">Nenhum lançamento encontrado</td></tr>`;
+        lancadosCarregados = true;
+        return;
+      }
+
+      // Ordena por data asc (opcional)
+      dados.sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+      dados.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatBR(l.data)}</td>
+          <td>${l.empresa || ''}</td>
+          <td>${formatCurrency(l.valor)}</td>`;
+        elLanc.appendChild(tr);
+      });
+
+      lancadosCarregados = true;
+
+    }catch(err){
+      elLanc.innerHTML = `<tr><td colspan="3" class="erro">Erro: ${err.message || err}</td></tr>`;
+    }
+  }
+
+  // Carrega pendentes ao abrir
+  document.addEventListener('DOMContentLoaded', carregarPendentes);
 </script>
 
 </body>
