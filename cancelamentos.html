@@ -1,27 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta charset="UTF-8"/>
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    #msg{margin-left:12px;font-weight:bold}
-    .sucesso{color:green}
-    .erro{color:red}
-    .toggle{cursor:pointer;color:#1e40af;font-weight:bold;display:inline-block;margin-top:12px}
-    .hidden{display:none}
-  </style>
 </head>
 <body>
   <!-- POPUP -->
-  <div class="popup" id="popupCancel" style="display:flex">
+  <div class="popup" id="popupCancel">
     <div class="popup-content">
-      <span class="fechar" onclick="window.location.href='config.html'">✖</span>
+      <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Cancelamentos</h2>
-
-      <!-- PENDENTES -->
       <h3>Dias pendentes</h3>
+
       <table>
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -29,8 +20,7 @@
         <tbody id="tbodyPend"></tbody>
       </table>
 
-      <!-- Lançados ocultos -->
-      <div class="toggle" onclick="toggleLancados()">+ Ver lançados</div>
+      <div class="toggle" onclick="toggleLancados()" id="toggleLanc">+ Ver lançados</div>
       <table class="hidden" id="tbLancados">
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -38,29 +28,27 @@
         <tbody id="tbodyLanc"></tbody>
       </table>
 
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
-        <button type="button" class="confirmar" id="btnSalvar">Salvar</button>
-        <span id="msg"></span>
-      </div>
+      <button class="confirmar" id="btnSalvar">Salvar</button>
+      <div id="msg"></div>
     </div>
   </div>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzrz6yVuJcmRUbHargIU2p5U_t9VelZel4PJnIPXjf4RefoTZCDx0dUk3a6Y5S1t6s_Mg/exec"; // 🔹 troque pelo seu link do GAS
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzbx-p1-03ei6MDZq5IoTWPmqPwEtWPT60pdDbHRVv1fSe6v_249PkUpszoTQ6dk8RKGw/exec"; // 🚨 substitua pelo seu URL
+
+    function abrirPopupCancel(){
+      document.getElementById("popupCancel").style.display="flex";
+      carregarCancelamentos();
+    }
+    function fecharPopup(){
+      document.getElementById("popupCancel").style.display="none";
+    }
 
     function formatBR(dateStr){
       if(!dateStr) return "";
       const [y,m,d]=dateStr.split("-");
       return `${d}/${m}/${y}`;
     }
-    function maskMoeda(el){
-      let v = el.value.replace(/\D/g,"");
-      if(!v){ el.value=""; return; }
-      v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
-      v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
-      el.value="R$ "+v;
-    }
-    function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
 
     async function carregarCancelamentos(){
       const pendBody=document.getElementById("tbodyPend");
@@ -68,32 +56,27 @@
       pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
       lancBody.innerHTML="";
       try{
-        // 🔹 Puxa lista completa
-        const res=await fetch(ENDPOINT+"?acao=listarCancelamentos",{cache:"no-store"});
+        const res=await fetch(ENDPOINT+"?acao=listarCancelamentos");
         const data=await res.json();
-        pendBody.innerHTML="";
-        if(data.status!=="ok"){ 
+
+        if(data.status!=="ok" || !data.dados){
           pendBody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
           return;
         }
 
         let pendCount=0;
         data.dados.forEach(item=>{
-          const tr=document.createElement("tr");
-          tr.innerHTML=`
+          const linha=document.createElement("tr");
+          linha.innerHTML=`
             <td>${formatBR(item.data)}</td>
             <td>${item.empresa}</td>
-            <td>
-              <input type="text" value="${item.valor>0? "R$ "+item.valor.toFixed(2).replace(".",",") : ""}"
-                class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" ${item.valor>0?"disabled":""}>
-            </td>`;
-          const input=tr.querySelector("input");
-          if(item.valor>0){
-            lancBody.appendChild(tr);
-          }else{
-            input.addEventListener("input",ev=>maskMoeda(ev.target));
-            pendBody.appendChild(tr);
+            <td>${item.valor>0? "R$ "+item.valor.toFixed(2).replace(".",","):""}</td>
+          `;
+          if(item.valor===0){
+            pendBody.appendChild(linha);
             pendCount++;
+          }else{
+            lancBody.appendChild(linha);
           }
         });
 
@@ -106,40 +89,11 @@
 
     function toggleLancados(){
       document.getElementById("tbLancados").classList.toggle("hidden");
+      const tgl=document.getElementById("toggleLanc");
+      tgl.textContent= tgl.textContent.startsWith("+")? "- Ocultar lançados": "+ Ver lançados";
     }
 
-    document.getElementById("btnSalvar").onclick=async ()=>{
-      const msg=document.getElementById("msg");
-      msg.textContent="";
-      const linhas=[];
-      document.querySelectorAll("#tbodyPend .moeda").forEach(inp=>{
-        const v=toNumber(inp.value);
-        if(v>0) linhas.push({empresa:inp.dataset.empresa,data:inp.dataset.data,valor:v});
-      });
-      if(!linhas.length){
-        msg.className="erro"; msg.textContent="Nenhum valor informado";
-        return;
-      }
-      try{
-        const r=await fetch(ENDPOINT,{
-          method:"POST",
-          headers:{"Content-Type":"text/plain"},
-          body:JSON.stringify({acao:"registrarCancelamentos",linhas})
-        });
-        const js=await r.json();
-        if(js.status==="ok"){
-          msg.className="sucesso"; msg.textContent="Salvo com sucesso";
-          await carregarCancelamentos();
-        }else{
-          msg.className="erro"; msg.textContent=js.msg||"Erro";
-        }
-      }catch(err){
-        msg.className="erro"; msg.textContent="Erro: "+err.message;
-      }
-    };
-
-    // autoabrir
-    window.addEventListener("DOMContentLoaded", carregarCancelamentos);
+    window.addEventListener("DOMContentLoaded", abrirPopupCancel);
   </script>
 </body>
 </html>
