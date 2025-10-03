@@ -6,115 +6,142 @@
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .popup-content{max-width:850px}
-    table{width:100%;border-collapse:collapse}
-    th,td{border:1px solid #ddd;padding:6px;text-align:center}
+    .popup {display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);justify-content:center;align-items:center;z-index:999}
+    .popup-content {background:#fff;padding:20px;border-radius:10px;max-width:900px;width:90%;max-height:90%;overflow:auto;position:relative}
+    .popup-content h2{margin-top:0}
+    .fechar{position:absolute;top:10px;right:15px;cursor:pointer;font-weight:bold;font-size:18px}
+
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:center}
     th{background:#173ea5;color:#fff}
     .sucesso{color:green}
     .erro{color:red}
-    .toggle{color:#2563eb;cursor:pointer;font-size:14px;display:block;margin:8px 0}
+    .toggle{cursor:pointer;color:#4f46e5;font-weight:bold;display:inline-block;margin-top:8px}
+    .hidden{display:none}
   </style>
 </head>
 <body>
-  <div class="popup" style="display:flex">
+
+  <!-- POPUP -->
+  <div class="popup" id="popupCancel">
     <div class="popup-content">
-      <span class="fechar" onclick="fechar()">✖</span>
+      <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Cancelamentos</h2>
 
-      <h3>Pendentes</h3>
       <table>
-        <thead><tr><th>Data</th><th>Empresa</th><th>Valor</th></tr></thead>
+        <thead>
+          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+        </thead>
         <tbody id="tbodyPend"></tbody>
       </table>
 
-      <span class="toggle" id="toggleLancados">+ Mostrar lançados</span>
-      <div id="boxLancados" style="display:none">
-        <h3>Lançados</h3>
-        <table>
-          <thead><tr><th>Data</th><th>Empresa</th><th>Valor</th></tr></thead>
-          <tbody id="tbodyLanc"></tbody>
-        </table>
-      </div>
+      <div class="toggle" onclick="toggleLancados()">+ Mostrar lançados</div>
+      <table class="hidden" id="tbLancados">
+        <thead>
+          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+        </thead>
+        <tbody id="tbodyLanc"></tbody>
+      </table>
 
-      <button id="btnSalvar">Salvar</button>
-      <span id="msg"></span>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <button id="btnSalvar">Salvar</button>
+        <span id="msg"></span>
+      </div>
     </div>
   </div>
 
-<script>
-const ENDPOINT="https://script.google.com/macros/s/AKfycbwtwPTZbfhQZbAZhXODFceK2luU04OigZUT4wvNpFh5la1cgZT5R-y5hX-zWYCBFzpIRQ/exec";
+  <script>
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwulyLTwytMulQc8LIBDHURV-X9l9OjAuxGrL_ke8g2NtqMzq_qidOi1gFH04XFI6jv_A/exec"; // ajuste aqui
 
-function fechar(){
-  window.parent.postMessage("fecharCancel","*");
-}
+    function abrirPopupCancel(){ 
+      document.getElementById("popupCancel").style.display="flex"; 
+      carregarCancelamentos(); 
+    }
+    function fecharPopup(){ 
+      document.getElementById("popupCancel").style.display="none"; 
+    }
 
-// máscara moeda
-function maskMoeda(el){
-  let v=el.value.replace(/\D/g,"");
-  if(!v){el.value="";return;}
-  v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
-  v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
-  el.value="R$ "+v;
-}
-function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
-function formatBR(d){return d.split("-").reverse().join("/");}
+    function formatBR(dateStr){
+      const [y,m,d]=dateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    function maskMoeda(el){
+      let v = el.value.replace(/\D/g,"");
+      if(!v){ el.value=""; return; }
+      v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
+      v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+      el.value="R$ "+v;
+    }
+    function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
 
-// carregar pendentes + lançados
-async function init(){
-  const pend=await (await fetch(ENDPOINT+"?acao=statuscancelamentos")).json();
-  const lanc=await (await fetch(ENDPOINT+"?acao=listarcancelamentos")).json();
+    async function carregarCancelamentos(){
+      const pendBody=document.getElementById("tbodyPend");
+      const lancBody=document.getElementById("tbodyLanc");
+      pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
+      lancBody.innerHTML="";
+      try{
+        const res=await fetch(ENDPOINT+"?acao=listarCancelamentos",{cache:"no-store"});
+        const data=await res.json();
+        pendBody.innerHTML="";
 
-  const tbPend=document.getElementById("tbodyPend");
-  tbPend.innerHTML="";
-  let temPend=false;
-  (pend.companies||[]).forEach(c=>{
-    (c.pendentes||[]).forEach(dt=>{
-      temPend=true;
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${formatBR(dt)}</td>
-        <td>${c.empresa}</td>
-        <td><input class="moeda" data-empresa="${c.empresa}" data-data="${dt}" placeholder="R$ 0,00"></td>`;
-      tr.querySelector("input").addEventListener("input",ev=>maskMoeda(ev.target));
-      tbPend.appendChild(tr);
-    });
-  });
-  if(!temPend) tbPend.innerHTML=`<tr><td colspan="3">Sem pendências</td></tr>`;
+        if(data.status!=="ok"){ 
+          pendBody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
+          return;
+        }
 
-  const tbLanc=document.getElementById("tbodyLanc");
-  tbLanc.innerHTML="";
-  (lanc.dados||[]).forEach(r=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${formatBR(r.data)}</td><td>${r.empresa}</td><td>R$ ${r.valor.toLocaleString("pt-BR",{minimumFractionDigits:2})}</td>`;
-    tbLanc.appendChild(tr);
-  });
-}
+        let pendCount=0;
 
-document.getElementById("btnSalvar").onclick=async()=>{
-  const msg=document.getElementById("msg");
-  msg.textContent="";
-  const linhas=[];
-  document.querySelectorAll(".moeda").forEach(i=>{
-    const v=toNumber(i.value);
-    if(v>0) linhas.push({empresa:i.dataset.empresa,valor:v,data:i.dataset.data});
-  });
-  if(!linhas.length){msg.textContent="Preencha valores";msg.className="erro";return;}
+        data.dados.forEach(item=>{
+          const linha=document.createElement("tr");
+          linha.innerHTML=`
+            <td>${formatBR(item.data)}</td>
+            <td>${item.empresa}</td>
+            <td><input type="text" value="${item.valor? "R$ "+item.valor.toFixed(2).replace(".",",") : ""}" 
+                  class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" ${item.valor? "disabled":""}></td>
+          `;
+          const input=linha.querySelector("input");
+          if(!item.valor) { // pendente
+            input.addEventListener("input",ev=>maskMoeda(ev.target));
+            pendBody.appendChild(linha);
+            pendCount++;
+          }else{
+            lancBody.appendChild(linha);
+          }
+        });
 
-  const r=await fetch(ENDPOINT,{
-    method:"POST",headers:{"Content-Type":"text/plain"},
-    body:JSON.stringify({acao:"registrarcancelamentos",linhas})
-  });
-  const js=await r.json();
-  if(js.status==="ok"){msg.textContent="Sucesso";msg.className="sucesso";init();}
-  else{msg.textContent=js.msg;msg.className="erro";}
-};
+        // badge no card Config
+        const badge=document.getElementById("badgeCancel");
+        if(badge){ badge.textContent=pendCount>0?pendCount:""; }
 
-document.getElementById("toggleLancados").onclick=()=>{
-  const box=document.getElementById("boxLancados");
-  if(box.style.display==="none"){box.style.display="block";document.getElementById("toggleLancados").textContent="- Ocultar lançados";}
-  else{box.style.display="none";document.getElementById("toggleLancados").textContent="+ Mostrar lançados";}
-};
+        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Nenhum pendente</td></tr>";
 
-init();
-</script>
+      }catch(err){
+        pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
+      }
+    }
+
+    function toggleLancados(){
+      document.getElementById("tbLancados").classList.toggle("hidden");
+    }
+
+    document.getElementById("btnSalvar").onclick=async ()=>{
+      const msg=document.getElementById("msg");
+      msg.textContent="";
+      const linhas=[];
+      document.querySelectorAll("#tbodyPend .moeda").forEach(inp=>{
+        const v=toNumber(inp.value);
+        if(v>0) linhas.push({empresa:inp.dataset.empresa,data:inp.dataset.data,valor:v});
+      });
+      if(!linhas.length){ msg.textContent="Nenhum valor preenchido"; msg.className="erro"; return; }
+      const r=await fetch(ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({acao:"registrarCancelamentos",linhas})
+      });
+      const js=await r.json();
+      if(js.status==="ok"){ msg.textContent="Salvo com sucesso"; msg.className="sucesso"; carregarCancelamentos(); }
+      else { msg.textContent=js.msg; msg.className="erro"; }
+    };
+  </script>
 </body>
 </html>
