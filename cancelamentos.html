@@ -18,6 +18,17 @@
     .erro{color:red}
     .toggle{cursor:pointer;color:#4f46e5;font-weight:bold;display:inline-block;margin-top:8px}
     .hidden{display:none}
+
+    /* Badge no card de Config */
+    .badge {
+      display:none;
+      position:absolute;
+      top:6px; right:10px;
+      background:red; color:#fff;
+      border-radius:50%;
+      font-size:12px; font-weight:bold;
+      padding:4px 7px;
+    }
   </style>
 </head>
 <body>
@@ -28,6 +39,7 @@
       <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Cancelamentos</h2>
 
+      <h4>Pendentes</h4>
       <table>
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -35,7 +47,7 @@
         <tbody id="tbodyPend"></tbody>
       </table>
 
-      <div class="toggle" onclick="toggleLancados()">+ Mostrar lançados</div>
+      <div class="toggle" onclick="toggleLancados()" id="toggleLanc">+ Mostrar lançados</div>
       <table class="hidden" id="tbLancados">
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -51,7 +63,7 @@
   </div>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwulyLTwytMulQc8LIBDHURV-X9l9OjAuxGrL_ke8g2NtqMzq_qidOi1gFH04XFI6jv_A/exec"; // ajuste aqui
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzzMU99W7jnbHB4kWG6JH7-5JZdk6qbDnDo6MMaDzk9hmnccHnYiKvmQP92XMWvubpR1w/exec";
 
     function abrirPopupCancel(){ 
       document.getElementById("popupCancel").style.display="flex"; 
@@ -80,7 +92,7 @@
       pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
       lancBody.innerHTML="";
       try{
-        const res=await fetch(ENDPOINT+"?acao=listarCancelamentos",{cache:"no-store"});
+        const res=await fetch(ENDPOINT+"?acao=listarcancelamentos",{cache:"no-store"});
         const data=await res.json();
         pendBody.innerHTML="";
 
@@ -111,9 +123,16 @@
 
         // badge no card Config
         const badge=document.getElementById("badgeCancel");
-        if(badge){ badge.textContent=pendCount>0?pendCount:""; }
+        if(badge){
+          if(pendCount>0){
+            badge.style.display="inline-block";
+            badge.textContent=pendCount;
+          }else{
+            badge.style.display="none";
+          }
+        }
 
-        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Nenhum pendente</td></tr>";
+        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Sem pendências</td></tr>";
 
       }catch(err){
         pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
@@ -121,7 +140,10 @@
     }
 
     function toggleLancados(){
-      document.getElementById("tbLancados").classList.toggle("hidden");
+      const tb=document.getElementById("tbLancados");
+      const tg=document.getElementById("toggleLanc");
+      tb.classList.toggle("hidden");
+      tg.textContent = tb.classList.contains("hidden")? "+ Mostrar lançados" : "- Ocultar lançados";
     }
 
     document.getElementById("btnSalvar").onclick=async ()=>{
