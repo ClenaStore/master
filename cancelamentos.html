@@ -1,99 +1,128 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8">
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .hidden { display:none; }
+    .erro { color:red; text-align:center; padding:6px; }
+  </style>
 </head>
 <body>
-  <!-- POPUP -->
-  <div class="popup" id="popupCancel">
-    <div class="popup-content">
-      <span class="fechar" onclick="fecharPopup()">✖</span>
-      <h2>Cancelamentos</h2>
-      <h3>Dias pendentes</h3>
 
-      <table>
-        <thead>
-          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-        </thead>
-        <tbody id="tbodyPend"></tbody>
-      </table>
+<!-- POPUP -->
+<div class="popup" id="popupCancelamentos" style="display:flex">
+  <div class="popup-content">
+    <span class="fechar" onclick="fecharPopup()">&times;</span>
+    <h2>Cancelamentos</h2>
+    <h3>Dias pendentes</h3>
+    <table id="tabelaPendentes">
+      <thead>
+        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-      <div class="toggle" onclick="toggleLancados()" id="toggleLanc">+ Ver lançados</div>
-      <table class="hidden" id="tbLancados">
-        <thead>
-          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-        </thead>
-        <tbody id="tbodyLanc"></tbody>
-      </table>
+    <a href="#" id="toggleLancados" onclick="toggleLancados(event)">+ Ver lançados</a>
 
-      <button class="confirmar" id="btnSalvar">Salvar</button>
-      <div id="msg"></div>
-    </div>
+    <table id="tabelaLancados" class="hidden">
+      <thead>
+        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <button class="confirmar" onclick="salvar()">Salvar</button>
+    <div id="msg"></div>
   </div>
+</div>
 
-  <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzy2ul5jlmfVOnT4gJ4XDyjuIEdwrOUfctue9YH5fMIVJ1D6H1YBDPNkEGBcuLCWcYxvA/exec"; // 🚨 substitua pelo seu URL
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbzy2ul5jlmfVOnT4gJ4XDyjuIEdwrOUfctue9YH5fMIVJ1D6H1YBDPNkEGBcuLCWcYxvA/exec"; // Ex: https://script.google.com/macros/s/AKfycbz.../exec
 
-    function abrirPopupCancel(){
-      document.getElementById("popupCancel").style.display="flex";
-      carregarCancelamentos();
-    }
-    function fecharPopup(){
-      document.getElementById("popupCancel").style.display="none";
-    }
+// Helpers
+function formatarData(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function fecharPopup(){
+  document.getElementById("popupCancelamentos").style.display = "none";
+}
+function toggleLancados(e){
+  e.preventDefault();
+  const tabela = document.getElementById("tabelaLancados");
+  tabela.classList.toggle("hidden");
+  document.getElementById("toggleLancados").textContent =
+    tabela.classList.contains("hidden") ? "+ Ver lançados" : "- Ocultar lançados";
+}
 
-    function formatBR(dateStr){
-      if(!dateStr) return "";
-      const [y,m,d]=dateStr.split("-");
-      return `${d}/${m}/${y}`;
-    }
+// Carregar dados ao abrir
+document.addEventListener("DOMContentLoaded", carregarPendentes);
 
-    async function carregarCancelamentos(){
-      const pendBody=document.getElementById("tbodyPend");
-      const lancBody=document.getElementById("tbodyLanc");
-      pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
-      lancBody.innerHTML="";
-      try{
-        const res=await fetch(ENDPOINT+"?acao=listarCancelamentos");
-        const data=await res.json();
+async function carregarPendentes(){
+  const corpo = document.querySelector("#tabelaPendentes tbody");
+  corpo.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
 
-        if(data.status!=="ok" || !data.dados){
-          pendBody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
-          return;
-        }
+  try{
+    const resp = await fetch(`${API_URL}?acao=statusCancelamentos`);
+    const data = await resp.json();
+    corpo.innerHTML = "";
 
-        let pendCount=0;
-        data.dados.forEach(item=>{
-          const linha=document.createElement("tr");
-          linha.innerHTML=`
-            <td>${formatBR(item.data)}</td>
-            <td>${item.empresa}</td>
-            <td>${item.valor>0? "R$ "+item.valor.toFixed(2).replace(".",","):""}</td>
-          `;
-          if(item.valor===0){
-            pendBody.appendChild(linha);
-            pendCount++;
-          }else{
-            lancBody.appendChild(linha);
-          }
-        });
-
-        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Nenhum pendente</td></tr>";
-
-      }catch(err){
-        pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
-      }
+    if(!data.companies || !data.companies.length){
+      corpo.innerHTML = "<tr><td colspan=3>Nenhum pendente</td></tr>";
+      return;
     }
 
-    function toggleLancados(){
-      document.getElementById("tbLancados").classList.toggle("hidden");
-      const tgl=document.getElementById("toggleLanc");
-      tgl.textContent= tgl.textContent.startsWith("+")? "- Ocultar lançados": "+ Ver lançados";
+    data.companies.forEach(emp => {
+      emp.pendentes.forEach(dt => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${formatarData(dt)}</td><td>${emp.empresa}</td><td>-</td>`;
+        corpo.appendChild(tr);
+      });
+    });
+
+  }catch(err){
+    corpo.innerHTML = `<tr><td colspan=3 class='erro'>Erro: ${err.message}</td></tr>`;
+  }
+}
+
+async function carregarLancados(){
+  const corpo = document.querySelector("#tabelaLancados tbody");
+  corpo.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
+  try{
+    const resp = await fetch(`${API_URL}?acao=listarCancelamentos`);
+    const data = await resp.json();
+    corpo.innerHTML = "";
+
+    if(!data.dados || !data.dados.length){
+      corpo.innerHTML = "<tr><td colspan=3>Nenhum lançado</td></tr>";
+      return;
     }
 
-    window.addEventListener("DOMContentLoaded", abrirPopupCancel);
-  </script>
+    data.dados.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${formatarData(r.data)}</td><td>${r.empresa}</td><td>${r.valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>`;
+      corpo.appendChild(tr);
+    });
+
+  }catch(err){
+    corpo.innerHTML = `<tr><td colspan=3 class='erro'>Erro: ${err.message}</td></tr>`;
+  }
+}
+
+function salvar(){
+  document.getElementById("msg").textContent = "✔️ Salvando (demo)";
+}
+
+// Auto-carrega lançados quando expandir
+document.getElementById("toggleLancados").addEventListener("click", ()=>{
+  if(!document.getElementById("tabelaLancados").classList.contains("hidden")){
+    carregarLancados();
+  }
+});
+</script>
+
 </body>
 </html>
