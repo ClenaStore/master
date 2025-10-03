@@ -6,39 +6,35 @@
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
   <style>
+    body{margin:0;font-family:sans-serif;background:#f3f4f6}
+    .popup{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+    .popup-content{background:#fff;padding:20px;border-radius:8px;width:90%;max-width:700px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+    .popup-content h2{margin:0 0 5px}
+    .popup-content h3{margin:10px 0}
+    .fechar{float:right;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px 6px;border:1px solid #ddd;text-align:center}
+    th{background:#1e3a8a;color:#fff}
     .hidden{display:none}
     .erro{color:#d00;text-align:center;padding:10px}
     .info{color:#334155;text-align:center;padding:8px}
     .muted{color:#64748b}
     .link{cursor:pointer;color:#4f46e5;font-weight:600;text-decoration:none}
     .link:hover{text-decoration:underline}
-    input.valor-edit{
-      width: 120px;
-      padding: 5px;
-      text-align: right;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button.confirmar{
-      background:#1e40af;
-      color:white;
-      padding:8px 16px;
-      border:none;
-      border-radius:6px;
-      cursor:pointer;
-      font-weight:600;
-    }
-    button.confirmar:hover{background:#1d4ed8}
+    input.valor-edit{width:120px;padding:5px;text-align:right}
+    button.confirmar{padding:8px 20px;border:none;border-radius:6px;background:#1e3a8a;color:#fff;cursor:pointer;font-weight:600}
+    button.confirmar:hover{background:#3749a3}
   </style>
 </head>
 <body>
 
+<!-- POPUP -->
 <div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
     <span class="fechar" onclick="fecharPopup()">✖</span>
     <h2>Cancelamentos</h2>
-
     <h3>Dias pendentes</h3>
+
     <table id="tbPend">
       <thead>
         <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -70,8 +66,8 @@
 </div>
 
 <script>
-  // 🔗 Cole aqui o URL do seu Web App (GAS publicado)
-  const API_URL = "https://script.google.com/macros/s/AKfycby-kPsX-n0GIroSUc5e6HGID_Scl8E9Aim3oJun3z4R746jG9U_52QXo7sZk4-8LaFKiQ/exec";
+  // 🔗 Cole aqui o URL do seu Web App (GAS publicado em modo "Qualquer pessoa")
+  const API_URL = "https://script.google.com/macros/s/AKfycbzyn6POaWRXbsylHgb-Nkw6T9CHLOnA8QBlwI8xMeakDh7vOiaEHNRMEaEeHQuXnOtbiA/exec";
 
   const elPend = document.querySelector('#tbPend tbody');
   const elLanc = document.querySelector('#tbLanc tbody');
@@ -97,12 +93,12 @@
   }
 
   function formatarMoeda(input) {
-    let valor = input.value.replace(/\D/g, ""); 
+    let valor = input.value.replace(/\D/g, "");
     if (!valor) {
       input.value = "";
       return;
     }
-    valor = (parseInt(valor, 10) / 100).toFixed(2); 
+    valor = (parseInt(valor, 10) / 100).toFixed(2);
     input.value = new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
@@ -134,13 +130,7 @@
           tr.innerHTML = `
             <td>${formatBR(d)}</td>
             <td>${c.empresa || ''}</td>
-            <td>
-              <input type="text" class="valor-edit" 
-                     data-empresa="${c.empresa}" 
-                     data-data="${d}" 
-                     placeholder="R$ 0,00" 
-                     oninput="formatarMoeda(this)" />
-            </td>`;
+            <td><input type="text" class="valor-edit" placeholder="Digite" data-empresa="${c.empresa}" data-data="${d}" oninput="formatarMoeda(this)" /></td>`;
           elPend.appendChild(tr);
           totalLinhas++;
         });
