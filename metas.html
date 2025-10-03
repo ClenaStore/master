@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metas</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Configurações</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,54 +12,64 @@
     <h2 onclick="location.href='index.html'">☰ Menu</h2>
     <button onclick="location.href='metas.html'">📊 Metas</button>
     <button onclick="location.href='historico.html'">📖 Histórico</button>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+    <button class="ativo" onclick="location.href='config.html'">⚙️ Configurações</button>
   </aside>
 
   <!-- CONTEÚDO -->
   <main>
-    <h1>Definir Metas</h1>
+    <h1>Configurações</h1>
+    <p>Aqui você poderá gerenciar parâmetros gerais do sistema.</p>
 
-    <form id="formMetas">
-      <table>
-        <thead>
-          <tr>
-            <th>Empresa</th>
-            <th>Meta Atual</th>
-            <th>Nova Meta</th>
-          </tr>
-        </thead>
-        <tbody id="tabelaMetas">
-          <!-- preenchido dinamicamente -->
-        </tbody>
-      </table>
-      <button type="submit" class="confirmar">Salvar Metas</button>
-      <p id="msg"></p>
-    </form>
+    <div class="grid">
+      <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
+    </div>
   </main>
 
+  <!-- POPUP DE METAS -->
+  <div class="popup" id="popupMetas">
+    <div class="popup-content">
+      <span class="fechar" onclick="fecharPopup()">✖</span>
+      <h2>Definir Metas</h2>
+      <form id="formMetas">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Meta Atual</th>
+              <th>Nova Meta</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMetas"></tbody>
+        </table>
+        <button type="submit" class="confirmar">Salvar Metas</button>
+        <p id="msg"></p>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // 🔗 seu endpoint do GAS
     const ENDPOINT = "https://script.google.com/macros/s/AKfycbxgN5Vzz3jGFGA0EvVIj-okctlPI5mszLTDuy2N-Np2YiMR2dLSPx0yE_o8yM1p5Uu0/exec";
 
-    // Formatar campo moeda
+    function abrirPopup(){
+      document.getElementById("popupMetas").style.display = "flex";
+      carregarMetas();
+    }
+    function fecharPopup(){
+      document.getElementById("popupMetas").style.display = "none";
+    }
+
     function formatarMoeda(input){
       let valor = input.value.replace(/\D/g, "");
-      if(valor === "") {
-        input.value = "";
-        return;
-      }
+      if(valor === "") { input.value = ""; return; }
       valor = (parseInt(valor) / 100).toFixed(2) + "";
       valor = valor.replace(".", ",");
       valor = valor.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       input.value = "R$ " + valor;
     }
-
-    // Limpar moeda p/ número
     function limparMoeda(valor){
       return parseFloat(valor.replace(/[R$\.\s]/g, "").replace(",", "."));
     }
 
-    // Carregar metas atuais
     async function carregarMetas(){
       try {
         const res = await fetch(ENDPOINT+"?acao=listarMetas");
@@ -77,11 +87,10 @@
         });
       } catch (e) {
         document.getElementById("msg").style.color = "red";
-        document.getElementById("msg").innerText = "Erro ao carregar: " + e.message;
+        document.getElementById("msg").innerText = "Erro ao carregar";
       }
     }
 
-    // Salvar metas
     document.getElementById("formMetas").addEventListener("submit", async (e)=>{
       e.preventDefault();
       const btn = e.target.querySelector("button.confirmar");
@@ -116,9 +125,6 @@
 
       carregarMetas();
     });
-
-    // Inicia carregando
-    carregarMetas();
   </script>
 </body>
 </html>
