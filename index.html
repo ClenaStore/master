@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Painel ADM</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;background:#f5f7fa;display:flex;height:100vh}
+    aside{width:220px;background:#1e40af;color:#fff;display:flex;flex-direction:column}
+    aside h2{padding:20px 15px;font-size:18px;border-bottom:1px solid rgba(255,255,255,.2)}
+    aside button{background:none;border:none;color:#fff;text-align:left;padding:15px;cursor:pointer;font-size:15px;width:100%}
+    aside button:hover{background:rgba(255,255,255,.1)}
+    main{flex:1;padding:20px;overflow:auto}
+    h1{margin-bottom:15px;color:#1e3a8a}
+    .card{background:#fff;padding:15px;margin-bottom:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    label{display:block;margin:8px 0 4px}
+    input,select,button{width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin-bottom:12px}
+    button.confirmar{background:#1e40af;color:#fff;border:none;cursor:pointer}
+    button.confirmar:hover{background:#3749db}
+    #msg{font-weight:bold;margin-top:10px}
+  </style>
+</head>
+<body>
+  <!-- MENU LATERAL -->
+  <aside>
+    <h2>⚙️ Configurações</h2>
+    <button onclick="abrirModulo('metas')">Definir Metas</button>
+    <!-- depois você pode incluir: Definir Limites, Alertas, Usuários etc -->
+  </aside>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main>
+    <h1>Painel ADM</h1>
+
+    <!-- MODULO DE METAS -->
+    <section id="metas" class="modulo">
+      <h2>Definir Metas</h2>
+      <div class="card">
+        <form id="metaForm">
+          <label for="empresa">Empresa:</label>
+          <select id="empresa" required>
+            <option value="MERCATTO DELÍCIA">MERCATTO DELÍCIA</option>
+            <option value="DELICIA GOURMET">DELICIA GOURMET</option>
+            <option value="PADARIA DELÍCIA">PADARIA DELÍCIA</option>
+            <option value="VILLA GOURMET">VILLA GOURMET</option>
+            <option value="M. KIDS">M. KIDS</option>
+          </select>
+
+          <label for="previsto">Meta Prevista (R$):</label>
+          <input type="number" id="previsto" step="0.01" required>
+
+          <label for="realizado">Valor Realizado (R$):</label>
+          <input type="number" id="realizado" step="0.01" required>
+
+          <button type="submit" class="confirmar">Confirmar</button>
+        </form>
+        <p id="msg"></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyQPrI5TOv-28bcXc-4NXQds8mC-61RJ4A-D_FFgFYosdOnsZA6Gtw9EWNyNk0CTGhN2w/exec"; // coloque o Web App do GAS
+
+    // alternar módulos
+    function abrirModulo(id){
+      document.querySelectorAll(".modulo").forEach(sec=>sec.style.display="none");
+      document.getElementById(id).style.display="block";
+    }
+    abrirModulo("metas"); // abre por padrão
+
+    // envio metas
+    document.getElementById("metaForm").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const empresa = document.getElementById("empresa").value;
+      const previsto = parseFloat(document.getElementById("previsto").value);
+      const realizado = parseFloat(document.getElementById("realizado").value);
+
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({acao:"salvarMeta",empresa,previsto,realizado})
+      });
+
+      const data = await res.json();
+      document.getElementById("msg").innerHTML = data.msg;
+    });
+  </script>
+</body>
+</html>
