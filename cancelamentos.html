@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Cancelamentos</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .banner{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:14px;margin-bottom:16px}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .chip{background:#fee2e2;color:#991b1b;border-radius:20px;padding:4px 10px;font-size:12px}
+    .row{display:grid;grid-template-columns:200px 1fr;gap:10px;align-items:center;margin:10px 0}
+    .table{width:100%;border-collapse:collapse;background:#fff}
+    .table th,.table td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+    .table th{background:#173ea5;color:#fff}
+    .sucesso{color:green}
+    .erro{color:red}
+  </style>
+</head>
+<body>
+  <aside>
+    <h2>☰ Menu</h2>
+    <button onclick="location.href='index.html'">🏠 Início</button>
+    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+    <button class="active">🧾 Cancelamentos</button>
+  </aside>
+
+  <main>
+    <h1>Cancelamentos</h1>
+
+    <div class="banner" id="boxPendencias" style="display:none">
+      <strong>Pendências</strong>
+      <div class="chips" id="pendenciasList"></div>
+    </div>
+
+    <div class="banner">
+      <div class="row">
+        <label>Data</label>
+        <input type="date" id="inpData" />
+      </div>
+      <table class="table">
+        <thead><tr><th>Empresa</th><th>Valor</th></tr></thead>
+        <tbody id="tbodyVals"></tbody>
+      </table>
+      <div style="margin-top:10px">
+        <button id="btnSalvar">Salvar</button>
+        <span id="msg"></span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const ENDPOINT = "<https://script.google.com/macros/s/AKfycbw0r1bKaoqaAAoSEpmeG-wKCNxNu5RcyLMwjU4_HdhJoesdRzjfTZBpwyscUiYa1a5SrQ/exec>";
+
+    function maskMoeda(el){
+      let v = el.value.replace(/\D/g,"");
+      if(!v){ el.value=""; return; }
+      v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
+      v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+      el.value="R$ "+v;
+    }
+    function toNumber(s){ return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0); }
+    function ymd(d){ return d.toISOString().split("T")[0]; }
+
+    async function init(){
+      document.getElementById("inpData").value = ymd(new Date());
+      const emps = await (await fetch(ENDPOINT+"?acao=listarEmpresas")).json();
+      const tb = document.getElementById("tbodyVals");
+      tb.innerHTML="";
+      (emps.empresas||[]).forEach(e=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td>${e}</td><td><input data-empresa="${e}" class="moeda" placeholder="R$ 0,00"></td>`;
+        tr.querySelector("input").addEventListener("input",ev=>maskMoeda(ev.target));
+        tb.appendChild(tr);
+      });
+      const status = await (await fetch(ENDPOINT+"?acao=statusCancelamentos")).json();
+      renderPend(status);
+    }
+
+    function renderPend(js){
+      const box=document.getElementById("boxPendencias");
+      const list=document.getElementById("pendenciasList");
+      list.innerHTML="";
+      if(js.status!=="ok") return;
+      js.companies.forEach(c=>{
+        if(c.pendentes&&c.pendentes.length){
+          const chip=document.createElement("span");
+          chip.className="chip";
+          chip.textContent=`${c.empresa}: ${c.pendentes.length} dia(s)`;
+          list.appendChild(chip);
+        }
+      });
+      box.style.display=list.children.length?"block":"none";
+    }
+
+    document.getElementById("btnSalvar").onclick=async ()=>{
+      const msg=document.getElementById("msg");
+      msg.textContent="";
+      const data=document.getElementById("inpData").value;
+      const linhas=[];
+      document.querySelectorAll(".moeda").forEach(i=>{
+        const v=toNumber(i.value);
+        if(v>0) linhas.push({empresa:i.dataset.empresa,valor:v});
+      });
+      if(!linhas.length){ msg.textContent="Preencha valores"; msg.className="erro"; return; }
+      const r=await fetch(ENDPOINT,{
+        method:"POST",headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({acao:"registrarCancelamentos",data,linhas})
+      });
+      const js=await r.json();
+      if(js.status==="ok"){ msg.textContent="Sucesso"; msg.className="sucesso"; }
+      else{ msg.textContent=js.msg; msg.className="erro"; }
+    };
+
+    init();
+  </script>
+</body>
+</html>
