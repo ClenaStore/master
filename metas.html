@@ -3,19 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Painel ADM - Metas</title>
+  <title>Metas</title>
   <link rel="stylesheet" href="style.css">
   <style>
     #msg{margin-left:12px;font-weight:bold}
     .sucesso{color:green}
     .erro{color:red}
     .hidden{display:none}
-    body {margin:0;font-family:Arial, sans-serif;background:#f5f7fa;}
+
+    /* Tela fosca simulando popup */
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:rgba(0,0,0,.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
   </style>
 </head>
 <body>
-
-  <!-- POPUP sempre aberto -->
+  <!-- POPUP -->
   <div class="popup" id="popupMetas" style="display:flex">
     <div class="popup-content">
       <span class="fechar" onclick="window.location.href='config.html'">✖</span>
@@ -34,12 +43,10 @@
           <tbody id="tabelaMetas"></tbody>
         </table>
 
-        <!-- botão p/ abrir campos de novas metas -->
         <button type="button" id="btnDefinirMetas" style="margin-top:10px;background:#777;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">
           Definir Nova Meta
         </button>
 
-        <!-- seção oculta p/ alterar metas -->
         <div id="novaMetaBox" class="hidden" style="margin-top:15px">
           <h3>Definir Novas Metas</h3>
           <table>
@@ -165,7 +172,6 @@
       }
     });
 
-    // carrega assim que abrir a página
     carregarMetas();
   </script>
 </body>
