@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Painel ADM - Metas</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    #msg{margin-left:12px;font-weight:bold}
+    .sucesso{color:green}
+    .erro{color:red}
+  </style>
 </head>
 <body>
-  <!-- MENU -->
   <aside>
     <h2>☰ Menu</h2>
     <button onclick="location.href='metas.html'">📊 Metas</button>
@@ -15,9 +19,8 @@
     <button onclick="location.href='config.html'">⚙️ Configurações</button>
   </aside>
 
-  <!-- CONTEÚDO -->
   <main>
-    <h1>Configurações</h1>
+    <h1>Painel ADM</h1>
     <section id="config" class="modulo">
       <h2>Configurações</h2>
       <div class="grid">
@@ -53,7 +56,6 @@
   </div>
 
   <script>
-    // 🔗 troque pelo link do seu GAS WebApp
     const ENDPOINT = "https://script.google.com/macros/s/AKfycbxvUdmv-9Cl0wrIl8NsOeclaRPtDfr5S5xqMCbC5Cw1npc8nzavrKhAU_HomeWi4mWg/exec";
 
     function abrirPopup(){ 
@@ -87,14 +89,14 @@
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${row.empresa}</td>
-            <td>R$ ${atual}</td>
+            <td class="meta-atual" data-empresa="${row.empresa}">R$ ${atual}</td>
             <td><input type="text" class="moeda" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
           `;
           tr.querySelector(".moeda").addEventListener("input", e => formatarMoeda(e.target));
           tbody.appendChild(tr);
         });
       }catch(err){
-        tbody.innerHTML = `<tr><td colspan="3" style="color:red">Erro: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" style="color:red">Erro ao listar metas: ${err.message}</td></tr>`;
       }
     }
 
@@ -107,11 +109,11 @@
 
       const inputs = Array.from(document.querySelectorAll(".moeda"));
       const payload = inputs
-        .map(i => ({ empresa: i.dataset.empresa, meta: moedaParaNumero(i.value) }))
+        .map(i => ({ empresa: i.dataset.empresa, meta: moedaParaNumero(i.value), input:i }))
         .filter(x => x.meta > 0);
 
       if(payload.length === 0){
-        msg.style.color = "red";
+        msg.className = "erro";
         msg.textContent = "Informe pelo menos uma meta.";
         btn.disabled = false; btn.textContent = "Salvar Metas";
         return;
@@ -120,15 +122,29 @@
       try{
         const res = await fetch(ENDPOINT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ acao: "atualizarMetas", dados: payload })
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ acao: "atualizarMetas", dados: payload.map(p=>({empresa:p.empresa,meta:p.meta})) })
         });
         const resp = await res.json();
-        msg.style.color = (resp.status === "ok") ? "green" : "red";
-        msg.textContent = resp.status === "ok" ? "Sucesso" : resp.msg;
-        if(resp.status === "ok") await carregarMetas();
+        if(resp.status === "ok"){
+          msg.className = "sucesso";
+          msg.textContent = "Sucesso";
+
+          // atualizar os valores em "Meta Atual" sem recarregar
+          payload.forEach(p=>{
+            const cell = document.querySelector(`.meta-atual[data-empresa="${p.empresa}"]`);
+            if(cell){
+              cell.textContent = "R$ " + p.meta.toLocaleString("pt-BR",{minimumFractionDigits:2});
+              p.input.value = ""; // limpa campo
+            }
+          });
+
+        } else {
+          msg.className = "erro";
+          msg.textContent = resp.msg || "Erro ao salvar.";
+        }
       }catch(err){
-        msg.style.color = "red";
+        msg.className = "erro";
         msg.textContent = "Erro: " + err.message;
       }finally{
         btn.disabled = false; btn.textContent = "Salvar Metas";
