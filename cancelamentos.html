@@ -6,51 +6,61 @@
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .banner{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:14px;margin-bottom:16px}
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:rgba(0,0,0,.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+    .sucesso{color:green}
+    .erro{color:red}
+    .chip{background:#fee2e2;color:#991b1b;border-radius:20px;padding:4px 10px;font-size:12px;margin:2px}
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .chip{background:#fee2e2;color:#991b1b;border-radius:20px;padding:4px 10px;font-size:12px}
-    .row{display:grid;grid-template-columns:200px 1fr;gap:10px;align-items:center;margin:10px 0}
     .table{width:100%;border-collapse:collapse;background:#fff}
     .table th,.table td{border:1px solid #e5e7eb;padding:8px;text-align:center}
     .table th{background:#173ea5;color:#fff}
-    .sucesso{color:green}
-    .erro{color:red}
+    .popup-content{background:#fff;padding:20px;border-radius:10px;max-width:700px;width:92%;max-height:90vh;overflow:auto}
+    .fechar{float:right;cursor:pointer;color:#888;font-size:18px}
+    .fechar:hover{color:#000}
+    #msg{margin-left:12px;font-weight:bold}
   </style>
 </head>
 <body>
-  <aside>
-    <h2>☰ Menu</h2>
-    <button onclick="location.href='index.html'">🏠 Início</button>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
-    <button class="active">🧾 Cancelamentos</button>
-  </aside>
+  <!-- POPUP -->
+  <div class="popup" id="popupCancel" style="display:flex">
+    <div class="popup-content">
+      <span class="fechar" onclick="window.location.href='config.html'">✖</span>
+      <h2>Cancelamentos</h2>
 
-  <main>
-    <h1>Cancelamentos</h1>
-
-    <div class="banner" id="boxPendencias" style="display:none">
-      <strong>Pendências</strong>
-      <div class="chips" id="pendenciasList"></div>
-    </div>
-
-    <div class="banner">
-      <div class="row">
-        <label>Data</label>
-        <input type="date" id="inpData" />
+      <!-- pendências -->
+      <div class="banner" id="boxPendencias" style="display:none;background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:14px;margin-bottom:16px">
+        <strong>Pendências</strong>
+        <div class="chips" id="pendenciasList"></div>
       </div>
-      <table class="table">
-        <thead><tr><th>Empresa</th><th>Valor</th></tr></thead>
-        <tbody id="tbodyVals"></tbody>
-      </table>
-      <div style="margin-top:10px">
-        <button id="btnSalvar">Salvar</button>
-        <span id="msg"></span>
+
+      <!-- formulário -->
+      <div class="banner" style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:14px">
+        <div style="margin-bottom:10px;display:grid;grid-template-columns:100px 1fr;align-items:center;gap:10px">
+          <label>Data</label>
+          <input type="date" id="inpData" />
+        </div>
+        <table class="table">
+          <thead><tr><th>Empresa</th><th>Valor</th></tr></thead>
+          <tbody id="tbodyVals"></tbody>
+        </table>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+          <button id="btnSalvar">Salvar</button>
+          <span id="msg"></span>
+        </div>
       </div>
     </div>
-  </main>
+  </div>
 
   <script>
-    const ENDPOINT = "<https://script.google.com/macros/s/AKfycbw0r1bKaoqaAAoSEpmeG-wKCNxNu5RcyLMwjU4_HdhJoesdRzjfTZBpwyscUiYa1a5SrQ/exec>";
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbw0r1bKaoqaAAoSEpmeG-wKCNxNu5RcyLMwjU4_HdhJoesdRzjfTZBpwyscUiYa1a5SrQ/exec";
 
     function maskMoeda(el){
       let v = el.value.replace(/\D/g,"");
