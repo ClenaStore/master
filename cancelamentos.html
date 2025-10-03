@@ -1,70 +1,66 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Cancelamentos</title>
-  <link rel="stylesheet" href="style.css"><!-- usa o mesmo style do painel -->
+  <title>Painel ADM - Cancelamentos</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .sucesso { color: green; font-weight: bold; }
+    .erro { color: red; font-weight: bold; }
+    .hidden { display:none; }
+  </style>
 </head>
 <body>
+  <aside>
+    <h2>☰ Menu</h2>
+    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+  </aside>
 
-  <!-- CARD QUE ABRE O POPUP -->
   <main>
-    <div class="grid">
-      <div class="card" onclick="abrirPopupCancel()">
-        Cancelamentos
-        <span id="badgeCancel" style="background:#dc2626;color:#fff;font-size:12px;
-              padding:2px 6px;border-radius:50%;margin-left:6px;display:none"></span>
+    <h1>Painel ADM</h1>
+    <section>
+      <div class="grid">
+        <div class="card" onclick="abrirPopupCancel()">🧾<br>Cancelamentos</div>
       </div>
-    </div>
+    </section>
   </main>
 
-  <!-- POPUP CANCELAMENTOS -->
+  <!-- POPUP -->
   <div class="popup" id="popupCancel">
     <div class="popup-content">
       <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Cancelamentos</h2>
 
-      <h3>Pendentes</h3>
       <table>
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
         </thead>
-        <tbody id="tbodyPend"></tbody>
+        <tbody id="tbodyCancel"></tbody>
       </table>
 
-      <div class="toggle" onclick="toggleLancados()" 
-           style="margin-top:10px;cursor:pointer;color:#1e40af;font-weight:bold;">
-        + Mostrar lançados
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <button class="confirmar" id="btnNovo">Adicionar Linha</button>
+        <button class="confirmar" id="btnSalvar">Salvar</button>
+        <span id="msg"></span>
       </div>
-
-      <table class="hidden" id="tbLancados">
-        <thead>
-          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-        </thead>
-        <tbody id="tbodyLanc"></tbody>
-      </table>
-
-      <button id="btnSalvar" class="confirmar">Salvar</button>
-      <div id="msg"></div>
     </div>
   </div>
 
   <script>
-    // 🔹 Troque pelo seu link de deploy do Apps Script
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwKPEpC39dyua06_4_PB8JdNEFvtFILvGSAM8SdVEOwZrBiMepUPwawe2LlymKnnRxRew/exec"; 
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyJn-tehEW9RIG5p-zP0iV5aX_9hEKU2wAaQ45E85sK6BU9p1aYCoX4aZz-94aTmlRyeQ/exec";
 
-    function abrirPopupCancel(){ 
-      document.getElementById("popupCancel").style.display="flex"; 
-      carregarCancelamentos(); 
+    function abrirPopupCancel(){
+      document.getElementById("popupCancel").style.display="flex";
+      carregarCancelamentos();
     }
-    function fecharPopup(){ 
-      document.getElementById("popupCancel").style.display="none"; 
+    function fecharPopup(){
+      document.getElementById("popupCancel").style.display="none";
     }
 
     function formatBR(dateStr){
       if(!dateStr) return "";
-      const [y,m,d]=dateStr.split("-");
+      const [y,m,d] = dateStr.split("-");
       return `${d}/${m}/${y}`;
     }
     function maskMoeda(el){
@@ -74,91 +70,78 @@
       v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
       el.value="R$ "+v;
     }
-    function toNumber(s){
-      return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);
-    }
+    function toNumber(s){ return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0); }
 
     async function carregarCancelamentos(){
-      const pendBody=document.getElementById("tbodyPend");
-      const lancBody=document.getElementById("tbodyLanc");
-      pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
-      lancBody.innerHTML="";
+      const body = document.getElementById("tbodyCancel");
+      body.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
+      try {
+        const res = await fetch(ENDPOINT+"?acao=listarcancelamentos",{cache:"no-store"});
+        const data = await res.json();
+        body.innerHTML = "";
 
-      try{
-        const res=await fetch(ENDPOINT+"?acao=listarcancelamentos",{cache:"no-store"});
-        const data=await res.json();
-        pendBody.innerHTML="";
-
-        if(data.status!=="ok"){ 
-          pendBody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
+        if(data.status!=="ok"){
+          body.innerHTML = `<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
           return;
         }
 
-        let pendCount=0;
         data.dados.forEach(item=>{
-          const linha=document.createElement("tr");
-          linha.innerHTML=`
+          const tr=document.createElement("tr");
+          tr.innerHTML=`
             <td>${formatBR(item.data)}</td>
             <td>${item.empresa}</td>
-            <td><input type="text" value="${item.valor? "R$ "+item.valor.toFixed(2).replace(".",",") : ""}" 
-                  class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" ${item.valor? "disabled":""}></td>
+            <td><input type="text" value="${item.valor? "R$ "+item.valor.toFixed(2).replace(".",","):""}"
+                class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" 
+                ${item.valor? "disabled":""}></td>
           `;
-          const input=linha.querySelector("input");
-          if(!item.valor) { // pendente
-            input.addEventListener("input",ev=>maskMoeda(ev.target));
-            pendBody.appendChild(linha);
-            pendCount++;
-          }else{
-            lancBody.appendChild(linha);
-          }
+          const inp=tr.querySelector("input.moeda");
+          if(!item.valor){ inp.addEventListener("input", ev=>maskMoeda(ev.target)); }
+          body.appendChild(tr);
         });
 
-        // Mostrar badge vermelha no card se houver pendências
-        const badge=document.getElementById("badgeCancel");
-        if(pendCount>0){
-          badge.textContent=pendCount;
-          badge.style.display="inline-block";
-        } else {
-          badge.style.display="none";
-          pendBody.innerHTML="<tr><td colspan=3>Sem pendências</td></tr>";
+        if(!data.dados.length){
+          body.innerHTML = "<tr><td colspan=3>Nenhum registro</td></tr>";
         }
-
       }catch(err){
-        pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
+        body.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
       }
     }
 
-    function toggleLancados(){
-      document.getElementById("tbLancados").classList.toggle("hidden");
-    }
+    // botão adicionar linha
+    document.getElementById("btnNovo").onclick = ()=>{
+      const hoje=new Date().toISOString().split("T")[0];
+      const tr=document.createElement("tr");
+      tr.innerHTML=`
+        <td>${formatBR(hoje)}</td>
+        <td><input type="text" placeholder="Empresa" class="empresa"></td>
+        <td><input type="text" placeholder="R$ 0,00" class="moeda" data-data="${hoje}"></td>
+      `;
+      tr.querySelector(".moeda").addEventListener("input",ev=>maskMoeda(ev.target));
+      document.getElementById("tbodyCancel").appendChild(tr);
+    };
 
-    document.getElementById("btnSalvar").onclick=async ()=>{
+    // salvar
+    document.getElementById("btnSalvar").onclick = async ()=>{
       const msg=document.getElementById("msg");
-      msg.textContent="";
+      msg.textContent=""; msg.className="";
       const linhas=[];
-      document.querySelectorAll("#tbodyPend .moeda").forEach(inp=>{
-        const v=toNumber(inp.value);
-        if(v>0) linhas.push({empresa:inp.dataset.empresa,data:inp.dataset.data,valor:v});
+      document.querySelectorAll("#tbodyCancel tr").forEach(tr=>{
+        const empresa=tr.querySelector(".empresa")?tr.querySelector(".empresa").value:tr.children[1].textContent;
+        const inp=tr.querySelector(".moeda");
+        const valor=toNumber(inp.value);
+        if(empresa && valor>0){
+          linhas.push({empresa,data:inp.dataset.data,valor});
+        }
       });
       if(!linhas.length){ msg.textContent="Nenhum valor preenchido"; msg.className="erro"; return; }
-      msg.innerHTML="Salvando... <span class='spinner'></span>";
-
       const r=await fetch(ENDPOINT,{
-        method:"POST",
-        headers:{"Content-Type":"text/plain"},
+        method:"POST",headers:{"Content-Type":"text/plain"},
         body:JSON.stringify({acao:"registrarcancelamentos",linhas})
       });
       const js=await r.json();
-      if(js.status==="ok"){ 
-        msg.textContent="Salvo com sucesso"; 
-        msg.className="sucesso"; 
-        carregarCancelamentos(); 
-      }
+      if(js.status==="ok"){ msg.textContent="Salvo com sucesso"; msg.className="sucesso"; carregarCancelamentos(); }
       else { msg.textContent=js.msg; msg.className="erro"; }
     };
-
-    // 🔹 Abrir direto se acessar cancelamentos.html
-    window.addEventListener("DOMContentLoaded", ()=>{ abrirPopupCancel(); });
   </script>
 </body>
 </html>
