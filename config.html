@@ -4,90 +4,94 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Painel ADM - Configurações</title>
-  <link rel="stylesheet" href="style.css">
   <style>
-    body{margin:0;font-family:Arial,sans-serif;background:#f5f7fa;display:flex;height:100vh}
-    aside{width:220px;background:#1e40af;color:#fff;display:flex;flex-direction:column}
-    aside h2{padding:20px 15px;font-size:18px;border-bottom:1px solid rgba(255,255,255,.2)}
-    aside button{background:none;border:none;color:#fff;text-align:left;padding:15px;cursor:pointer;font-size:15px;width:100%}
-    aside button:hover{background:rgba(255,255,255,.1)}
-    main{flex:1;padding:20px;overflow:auto}
-    h1{margin-bottom:15px;color:#1e3a8a}
-
-    .grid{display:flex;gap:20px;flex-wrap:wrap}
+    body{margin:0;font-family:Arial, sans-serif;background:#f9fafb}
+    h1{margin:20px;font-size:22px}
+    .grid{
+      display:flex;gap:20px;flex-wrap:wrap;
+      margin:20px;
+    }
     .card{
-      background:#fff;min-width:140px;height:120px;border-radius:12px;
-      box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:pointer;display:flex;
-      align-items:center;justify-content:center;text-align:center;font-weight:bold;
-      color:#1e3a8a;transition:.2s ease;position:relative;
+      background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);
+      width:150px;height:120px;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;cursor:pointer;
+      position:relative;transition:.2s;
     }
-    .card:hover{background:#f0f4ff;transform:scale(1.05)}
-
-    /* Badge vermelha */
+    .card:hover{transform:scale(1.05)}
     .badge{
-      position:absolute;top:8px;right:12px;background:red;color:#fff;
-      border-radius:50%;padding:2px 6px;font-size:12px;display:none;
+      position:absolute;top:8px;right:12px;
+      background:#dc2626;color:#fff;font-size:12px;
+      padding:2px 7px;border-radius:50%;
+      display:none;
     }
+    /* overlay fosco */
+    .overlay{
+      position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;
+    }
+    .popup{
+      background:#fff;padding:20px;border-radius:8px;max-width:800px;width:90%;max-height:90%;
+      overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.25)
+    }
+    .fechar{float:right;cursor:pointer;font-size:18px}
   </style>
 </head>
 <body>
-  <aside>
-    <h2>⚙️ Menu</h2>
-    <button onclick="abrirModulo('config')">Configurações</button>
-  </aside>
+  <h1>Configurações</h1>
+  <div class="grid">
+    <!-- CARD METAS -->
+    <div class="card" onclick="abrirPopup('popupMetas')">
+      📊<br>Metas
+    </div>
 
-  <main>
-    <h1>Painel ADM</h1>
-    <section id="config" class="modulo">
-      <h2>Configurações</h2>
-      <div class="grid">
-        <!-- Card Metas -->
-        <div class="card" onclick="abrirPopup('metas')">📊<br>Metas</div>
+    <!-- CARD CANCELAMENTOS -->
+    <div class="card" onclick="abrirPopup('popupCancel')">
+      <span class="badge" id="badgeCancel"></span>
+      🧾<br>Cancelamentos
+    </div>
+  </div>
 
-        <!-- Card Cancelamentos -->
-        <div class="card" onclick="abrirPopup('cancelamentos')">
-          🧾<br>Cancelamentos
-          <span id="badgeCancel" class="badge"></span>
-        </div>
-      </div>
-    </section>
-  </main>
+  <!-- POPUP METAS -->
+  <div class="overlay" id="popupMetas">
+    <div class="popup">
+      <span class="fechar" onclick="fecharPopup('popupMetas')">✖</span>
+      <h2>Metas</h2>
+      <iframe src="metas.html" style="width:100%;height:500px;border:none"></iframe>
+    </div>
+  </div>
+
+  <!-- POPUP CANCELAMENTOS -->
+  <div class="overlay" id="popupCancel">
+    <div class="popup">
+      <span class="fechar" onclick="fecharPopup('popupCancel')">✖</span>
+      <h2>Cancelamentos</h2>
+      <iframe src="cancelamentos.html" style="width:100%;height:500px;border:none"></iframe>
+    </div>
+  </div>
 
   <script>
-    function abrirModulo(id){
-      document.querySelectorAll(".modulo").forEach(m => m.style.display="none");
-      document.getElementById(id).style.display="block";
-    }
-    abrirModulo("config");
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzT5s59n8ymg3e8lptDNvMU8AIvlxm4czi5LLOikkttwRThb7HQrut_yxcPWYdzmEcV3g/exec";
 
-    // abre popup em nova página (metas.html / cancelamentos.html)
-    function abrirPopup(tipo){
-      if(tipo==="metas"){
-        window.location.href="metas.html";
-      }
-      if(tipo==="cancelamentos"){
-        window.location.href="cancelamentos.html";
-      }
-    }
+    function abrirPopup(id){ document.getElementById(id).style.display="flex"; }
+    function fecharPopup(id){ document.getElementById(id).style.display="none"; }
 
-    // 🔴 Atualiza badge de Cancelamentos
-    async function atualizarBadge(){
+    async function carregarPendencias(){
       try{
-        const ENDPOINT="https://script.google.com/macros/s/AKfycbx52Ye9pY3fdiAWo9ci4d4wvBcfK4exWeNGKjmNgkJZGVxuxOhjaM9q02LNvhsBIMXefQ/exec"; // ajuste aqui
-        const res=await fetch(ENDPOINT+"?acao=statusCancelamentos",{cache:"no-store"});
-        const js=await res.json();
-        if(js.status!=="ok") return;
+        const res = await fetch(ENDPOINT+"?acao=statuscancelamentos");
+        const js = await res.json();
         let totalPend=0;
-        js.companies.forEach(c=>{ totalPend+=c.pendentes.length; });
-        const badge=document.getElementById("badgeCancel");
-        if(totalPend>0){ badge.textContent=totalPend; badge.style.display="inline-block"; }
-        else { badge.style.display="none"; }
-      }catch(e){ console.error("Erro badge",e); }
+        (js.companies||[]).forEach(c=> totalPend += (c.pendentes||[]).length );
+        if(totalPend>0){
+          const badge=document.getElementById("badgeCancel");
+          badge.style.display="block";
+          badge.textContent=totalPend;
+        }
+      }catch(err){
+        console.error("Erro pendências:",err);
+      }
     }
 
-    atualizarBadge();
-    // atualiza badge a cada 1 min
-    setInterval(atualizarBadge,60000);
+    carregarPendencias();
   </script>
 </body>
 </html>
