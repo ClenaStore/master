@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Painel ADM - Metas</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    #msg{margin-left:12px;font-weight:bold}
+    .sucesso{color:green}
+    .erro{color:red}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <aside>
+    <h2>☰ Menu</h2>
+    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+  </aside>
+
+  <main>
+    <h1>Painel ADM</h1>
+    <section id="config" class="modulo">
+      <h2>Configurações</h2>
+      <div class="grid">
+        <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- POPUP -->
+  <div class="popup" id="popupMetas">
+    <div class="popup-content">
+      <span class="fechar" onclick="fecharPopup()">✖</span>
+      <h2>Metas</h2>
+
+      <form id="formMetas">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Meta Atual</th>
+              <th>Valor Atingido</th>
+              <th>Novo Atingido</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMetas"></tbody>
+        </table>
+
+        <!-- botão p/ abrir campos de novas metas -->
+        <button type="button" id="btnDefinirMetas" style="margin-top:10px;background:#777;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer">
+          Definir Nova Meta
+        </button>
+
+        <!-- seção oculta p/ alterar metas -->
+        <div id="novaMetaBox" class="hidden" style="margin-top:15px">
+          <h3>Definir Novas Metas</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Nova Meta</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaNovasMetas"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;align-items:center;margin-top:12px;gap:10px">
+          <button type="submit" class="confirmar" id="btnSalvar">Salvar</button>
+          <span id="msg"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyDDHQjSqwNWhqCGdInvVj0m2Qe8YlDafIk7CRHPcELvkPYBsPD6QkOAs9JUdaW8R8/exec";
+
+    function abrirPopup(){ 
+      document.getElementById("popupMetas").style.display="flex"; 
+      carregarMetas(); 
+    }
+    function fecharPopup(){ 
+      document.getElementById("popupMetas").style.display="none"; 
+    }
+
+    function formatarMoeda(input){
+      let v = input.value.replace(/\D/g,"");
+      if(!v){ input.value=""; return; }
+      v = (parseInt(v,10)/100).toFixed(2).replace(".",",");
+      v = v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+      input.value = "R$ " + v;
+    }
+    function moedaParaNumero(s){ 
+      return Number(s.replace(/[R$\s\.]/g,"").replace(",",".") || ""); 
+    }
+
+    async function carregarMetas(){
+      const tbody = document.getElementById("tabelaMetas");
+      const novasBody = document.getElementById("tabelaNovasMetas");
+      tbody.innerHTML = "<tr><td colspan='4'>Carregando...</td></tr>";
+      novasBody.innerHTML = "";
+      try{
+        const res = await fetch(ENDPOINT+"?acao=listarMetas", { cache: "no-store" });
+        const data = await res.json();
+        tbody.innerHTML = "";
+        data.forEach(row=>{
+          const atual = Number(row.previsto||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+          const realizado = Number(row.realizado||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+
+          // tabela de atingidos
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.empresa}</td>
+            <td class="meta-atual">R$ ${atual}</td>
+            <td class="atingido-atual">R$ ${realizado}</td>
+            <td><input type="text" class="moeda atingido" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
+          `;
+          tr.querySelector(".atingido").addEventListener("input", e => formatarMoeda(e.target));
+          tbody.appendChild(tr);
+
+          // tabela de novas metas (oculta até clicar)
+          const trNova = document.createElement("tr");
+          trNova.innerHTML = `
+            <td>${row.empresa}</td>
+            <td><input type="text" class="moeda nova" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
+          `;
+          trNova.querySelector(".nova").addEventListener("input", e => formatarMoeda(e.target));
+          novasBody.appendChild(trNova);
+        });
+      }catch(err){
+        tbody.innerHTML = `<tr><td colspan="4" style="color:red">Erro ao listar metas: ${err.message}</td></tr>`;
+      }
+    }
+
+    // toggle do box de novas metas
+    document.getElementById("btnDefinirMetas").addEventListener("click",()=>{
+      document.getElementById("novaMetaBox").classList.toggle("hidden");
+    });
+
+    document.getElementById("formMetas").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const btn = document.getElementById("btnSalvar");
+      const msg = document.getElementById("msg");
+      msg.textContent = "";
+      btn.disabled = true; btn.innerHTML = 'Salvando...';
+
+      const novas = Array.from(document.querySelectorAll(".nova"))
+        .map(i => ({empresa: i.dataset.empresa, meta: moedaParaNumero(i.value), input:i}))
+        .filter(x => x.meta > 0);
+
+      const atingidos = Array.from(document.querySelectorAll(".atingido"))
+        .map(i => ({empresa: i.dataset.empresa, valor: moedaParaNumero(i.value), input:i}))
+        .filter(x => x.valor > 0);
+
+      const ontem = new Date();
+      ontem.setDate(ontem.getDate()-1);
+      const dataOntem = ontem.toISOString().split("T")[0];
+
+      try{
+        const res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            acao:"salvarMetasEAtingidos",
+            novas: novas.map(p=>({empresa:p.empresa,meta:p.meta})),
+            atingidos: atingidos.map(p=>({empresa:p.empresa,valor:p.valor,data:dataOntem}))
+          })
+        });
+        const resp = await res.json();
+        if(resp.status === "ok"){
+          msg.className = "sucesso";
+          msg.textContent = "Sucesso";
+
+          novas.forEach(p=>{ p.input.value = ""; });
+          atingidos.forEach(p=>{ p.input.value = ""; });
+
+          await carregarMetas();
+        } else {
+          msg.className = "erro";
+          msg.textContent = resp.msg || "Erro ao salvar.";
+        }
+      }catch(err){
+        msg.className = "erro";
+        msg.textContent = "Erro: " + err.message;
+      }finally{
+        btn.disabled = false; btn.textContent = "Salvar";
+      }
+    });
+  </script>
+</body>
+</html>
