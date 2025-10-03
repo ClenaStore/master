@@ -10,28 +10,15 @@
     .sucesso{color:green}
     .erro{color:red}
     .hidden{display:none}
+    body {margin:0;font-family:Arial, sans-serif;background:#f5f7fa;}
   </style>
 </head>
 <body>
-  <aside>
-    <h2>☰ Menu</h2>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
-  </aside>
 
-  <main>
-    <h1>Painel ADM</h1>
-    <section id="config" class="modulo">
-      <h2>Configurações</h2>
-      <div class="grid">
-        <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
-      </div>
-    </section>
-  </main>
-
-  <!-- POPUP -->
-  <div class="popup" id="popupMetas">
+  <!-- POPUP sempre aberto -->
+  <div class="popup" id="popupMetas" style="display:flex">
     <div class="popup-content">
-      <span class="fechar" onclick="fecharPopup()">✖</span>
+      <span class="fechar" onclick="window.location.href='config.html'">✖</span>
       <h2>Metas</h2>
 
       <form id="formMetas">
@@ -77,14 +64,6 @@
   <script>
     const ENDPOINT = "https://script.google.com/macros/s/AKfycbyDDHQjSqwNWhqCGdInvVj0m2Qe8YlDafIk7CRHPcELvkPYBsPD6QkOAs9JUdaW8R8/exec";
 
-    function abrirPopup(){ 
-      document.getElementById("popupMetas").style.display="flex"; 
-      carregarMetas(); 
-    }
-    function fecharPopup(){ 
-      document.getElementById("popupMetas").style.display="none"; 
-    }
-
     function formatarMoeda(input){
       let v = input.value.replace(/\D/g,"");
       if(!v){ input.value=""; return; }
@@ -109,7 +88,6 @@
           const atual = Number(row.previsto||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
           const realizado = Number(row.realizado||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
 
-          // tabela de atingidos
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${row.empresa}</td>
@@ -120,7 +98,6 @@
           tr.querySelector(".atingido").addEventListener("input", e => formatarMoeda(e.target));
           tbody.appendChild(tr);
 
-          // tabela de novas metas (oculta até clicar)
           const trNova = document.createElement("tr");
           trNova.innerHTML = `
             <td>${row.empresa}</td>
@@ -134,7 +111,6 @@
       }
     }
 
-    // toggle do box de novas metas
     document.getElementById("btnDefinirMetas").addEventListener("click",()=>{
       document.getElementById("novaMetaBox").classList.toggle("hidden");
     });
@@ -188,6 +164,9 @@
         btn.disabled = false; btn.textContent = "Salvar";
       }
     });
+
+    // carrega assim que abrir a página
+    carregarMetas();
   </script>
 </body>
 </html>
