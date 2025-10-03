@@ -1,34 +1,37 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Configurações - Metas</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Painel ADM - Metas</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- MENU -->
   <aside>
-    <h2 onclick="location.href='index.html'">☰ Menu</h2>
+    <h2>☰ Menu</h2>
     <button onclick="location.href='metas.html'">📊 Metas</button>
     <button onclick="location.href='historico.html'">📖 Histórico</button>
-    <button class="ativo" onclick="location.href='config.html'">⚙️ Configurações</button>
+    <button onclick="location.href='config.html'">⚙️ Configurações</button>
   </aside>
 
   <!-- CONTEÚDO -->
   <main>
     <h1>Configurações</h1>
-    <div class="grid">
-      <!-- CARD METAS -->
-      <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
-    </div>
+    <section id="config" class="modulo">
+      <h2>Configurações</h2>
+      <div class="grid">
+        <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
+      </div>
+    </section>
   </main>
 
-  <!-- POPUP DE METAS -->
+  <!-- POPUP -->
   <div class="popup" id="popupMetas">
     <div class="popup-content">
       <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Definir Metas</h2>
+
       <form id="formMetas">
         <table>
           <thead>
@@ -38,93 +41,98 @@
               <th>Nova Meta</th>
             </tr>
           </thead>
-          <tbody id="tabelaMetas">
-            <!-- preenchido dinamicamente -->
-          </tbody>
+          <tbody id="tabelaMetas"></tbody>
         </table>
-        <button type="submit" class="confirmar">Salvar Metas</button>
-        <p id="msg"></p>
+
+        <div style="display:flex;align-items:center;margin-top:8px">
+          <button type="submit" class="confirmar" id="btnSalvar">Salvar Metas</button>
+          <span id="msg"></span>
+        </div>
       </form>
     </div>
   </div>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbxgN5Vzz3jGFGA0EvVIj-okctlPI5mszLTDuy2N-Np2YiMR2dLSPx0yE_o8yM1p5Uu0/exec";
+    // 🔗 troque pelo link do seu GAS WebApp
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbxvUdmv-9Cl0wrIl8NsOeclaRPtDfr5S5xqMCbC5Cw1npc8nzavrKhAU_HomeWi4mWg/exec";
 
-    function abrirPopup(){
-      document.getElementById("popupMetas").style.display="flex";
-      carregarMetas();
+    function abrirPopup(){ 
+      document.getElementById("popupMetas").style.display="flex"; 
+      carregarMetas(); 
     }
-    function fecharPopup(){
-      document.getElementById("popupMetas").style.display="none";
+    function fecharPopup(){ 
+      document.getElementById("popupMetas").style.display="none"; 
     }
 
     function formatarMoeda(input){
-      let valor = input.value.replace(/\D/g, "");
-      if(valor === "") { input.value = ""; return; }
-      valor = (parseInt(valor) / 100).toFixed(2) + "";
-      valor = valor.replace(".", ",");
-      valor = valor.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-      input.value = "R$ " + valor;
+      let v = input.value.replace(/\D/g,"");
+      if(!v){ input.value=""; return; }
+      v = (parseInt(v,10)/100).toFixed(2).replace(".",",");
+      v = v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+      input.value = "R$ " + v;
     }
-    function limparMoeda(valor){
-      return parseFloat(valor.replace(/[R$\.\s]/g, "").replace(",", "."));
+    function moedaParaNumero(s){ 
+      return Number(s.replace(/[R$\s\.]/g,"").replace(",",".") || ""); 
     }
 
     async function carregarMetas(){
-      try {
-        const res = await fetch(ENDPOINT+"?acao=listarMetas");
+      const tbody = document.getElementById("tabelaMetas");
+      tbody.innerHTML = "<tr><td colspan='3'>Carregando...</td></tr>";
+      try{
+        const res = await fetch(ENDPOINT+"?acao=listarMetas", { cache: "no-store" });
         const data = await res.json();
-        const tbody = document.getElementById("tabelaMetas");
         tbody.innerHTML = "";
         data.forEach(row=>{
-          tbody.innerHTML += `
-            <tr>
-              <td>${row.empresa}</td>
-              <td>R$ ${Number(row.previsto).toLocaleString("pt-BR",{minimumFractionDigits:2})}</td>
-              <td><input type="text" name="novaMeta" data-empresa="${row.empresa}" oninput="formatarMoeda(this)"></td>
-            </tr>
+          const atual = Number(row.previsto||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.empresa}</td>
+            <td>R$ ${atual}</td>
+            <td><input type="text" class="moeda" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
           `;
+          tr.querySelector(".moeda").addEventListener("input", e => formatarMoeda(e.target));
+          tbody.appendChild(tr);
         });
-      } catch (e) {
-        document.getElementById("msg").style.color = "red";
-        document.getElementById("msg").innerText = "Erro ao carregar metas";
+      }catch(err){
+        tbody.innerHTML = `<tr><td colspan="3" style="color:red">Erro: ${err.message}</td></tr>`;
       }
     }
 
     document.getElementById("formMetas").addEventListener("submit", async (e)=>{
       e.preventDefault();
-      const btn = e.target.querySelector("button.confirmar");
-      btn.innerHTML = 'Salvando...';
-      btn.disabled = true;
-      document.getElementById("msg").innerText = "";
+      const btn = document.getElementById("btnSalvar");
+      const msg = document.getElementById("msg");
+      msg.textContent = "";
+      btn.disabled = true; btn.innerHTML = 'Salvando...';
 
-      const inputs = document.querySelectorAll("input[name='novaMeta']");
-      let novas = [];
-      inputs.forEach(i=>{
-        if(i.value){
-          novas.push({empresa:i.dataset.empresa,meta:limparMoeda(i.value)});
-        }
-      });
+      const inputs = Array.from(document.querySelectorAll(".moeda"));
+      const payload = inputs
+        .map(i => ({ empresa: i.dataset.empresa, meta: moedaParaNumero(i.value) }))
+        .filter(x => x.meta > 0);
+
+      if(payload.length === 0){
+        msg.style.color = "red";
+        msg.textContent = "Informe pelo menos uma meta.";
+        btn.disabled = false; btn.textContent = "Salvar Metas";
+        return;
+      }
 
       try{
         const res = await fetch(ENDPOINT, {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({acao:"atualizarMetas",dados:novas})
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ acao: "atualizarMetas", dados: payload })
         });
         const resp = await res.json();
-        document.getElementById("msg").style.color = resp.status === "ok" ? "green" : "red";
-        document.getElementById("msg").innerText = resp.status === "ok" ? "Sucesso" : resp.msg;
-      } catch(e){
-        document.getElementById("msg").style.color = "red";
-        document.getElementById("msg").innerText = "Erro: " + e.message;
+        msg.style.color = (resp.status === "ok") ? "green" : "red";
+        msg.textContent = resp.status === "ok" ? "Sucesso" : resp.msg;
+        if(resp.status === "ok") await carregarMetas();
+      }catch(err){
+        msg.style.color = "red";
+        msg.textContent = "Erro: " + err.message;
+      }finally{
+        btn.disabled = false; btn.textContent = "Salvar Metas";
       }
-
-      btn.innerHTML = 'Salvar Metas';
-      btn.disabled = false;
-
-      carregarMetas();
     });
   </script>
 </body>
