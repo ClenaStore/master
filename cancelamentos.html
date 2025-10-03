@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Cancelamentos</title>
-  <style>
-    .popup {display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);justify-content:center;align-items:center;z-index:999}
-    .popup-content {background:#fff;padding:20px;border-radius:10px;max-width:900px;width:90%;max-height:90%;overflow:auto;position:relative}
-    .popup-content h2{margin-top:0}
-    .fechar{position:absolute;top:10px;right:15px;cursor:pointer;font-weight:bold;font-size:18px}
-
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #ddd;padding:8px;text-align:center}
-    th{background:#173ea5;color:#fff}
-    .sucesso{color:green}
-    .erro{color:red}
-    .toggle{cursor:pointer;color:#4f46e5;font-weight:bold;display:inline-block;margin-top:8px}
-    .hidden{display:none}
-  </style>
+  <link rel="stylesheet" href="style.css"><!-- usa o mesmo style do painel -->
 </head>
 <body>
 
-  <!-- POPUP -->
+  <!-- CARD QUE ABRE O POPUP -->
+  <main>
+    <div class="grid">
+      <div class="card" onclick="abrirPopupCancel()">
+        Cancelamentos
+        <span id="badgeCancel" style="background:#dc2626;color:#fff;font-size:12px;
+              padding:2px 6px;border-radius:50%;margin-left:6px;display:none"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- POPUP CANCELAMENTOS -->
   <div class="popup" id="popupCancel">
     <div class="popup-content">
       <span class="fechar" onclick="fecharPopup()">✖</span>
       <h2>Cancelamentos</h2>
 
+      <h3>Pendentes</h3>
       <table>
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -34,7 +33,11 @@
         <tbody id="tbodyPend"></tbody>
       </table>
 
-      <div class="toggle" onclick="toggleLancados()">+ Mostrar lançados</div>
+      <div class="toggle" onclick="toggleLancados()" 
+           style="margin-top:10px;cursor:pointer;color:#1e40af;font-weight:bold;">
+        + Mostrar lançados
+      </div>
+
       <table class="hidden" id="tbLancados">
         <thead>
           <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
@@ -42,15 +45,14 @@
         <tbody id="tbodyLanc"></tbody>
       </table>
 
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
-        <button id="btnSalvar">Salvar</button>
-        <span id="msg"></span>
-      </div>
+      <button id="btnSalvar" class="confirmar">Salvar</button>
+      <div id="msg"></div>
     </div>
   </div>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbz8hVnZ6zY4Xi-occfy4sWBsjnZ9GQfTJAPsox_cz04yvLA7lO1suUsSbDxwE4mq3Mrig/exec"; // 🔹 Troque pelo seu link de implantação do GAS
+    // 🔹 Troque pelo seu link de deploy do Apps Script
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbwKPEpC39dyua06_4_PB8JdNEFvtFILvGSAM8SdVEOwZrBiMepUPwawe2LlymKnnRxRew/exec"; 
 
     function abrirPopupCancel(){ 
       document.getElementById("popupCancel").style.display="flex"; 
@@ -61,6 +63,7 @@
     }
 
     function formatBR(dateStr){
+      if(!dateStr) return "";
       const [y,m,d]=dateStr.split("-");
       return `${d}/${m}/${y}`;
     }
@@ -71,13 +74,16 @@
       v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
       el.value="R$ "+v;
     }
-    function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
+    function toNumber(s){
+      return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);
+    }
 
     async function carregarCancelamentos(){
       const pendBody=document.getElementById("tbodyPend");
       const lancBody=document.getElementById("tbodyLanc");
       pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
       lancBody.innerHTML="";
+
       try{
         const res=await fetch(ENDPOINT+"?acao=listarcancelamentos",{cache:"no-store"});
         const data=await res.json();
@@ -89,7 +95,6 @@
         }
 
         let pendCount=0;
-
         data.dados.forEach(item=>{
           const linha=document.createElement("tr");
           linha.innerHTML=`
@@ -108,7 +113,15 @@
           }
         });
 
-        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Nenhum pendente</td></tr>";
+        // Mostrar badge vermelha no card se houver pendências
+        const badge=document.getElementById("badgeCancel");
+        if(pendCount>0){
+          badge.textContent=pendCount;
+          badge.style.display="inline-block";
+        } else {
+          badge.style.display="none";
+          pendBody.innerHTML="<tr><td colspan=3>Sem pendências</td></tr>";
+        }
 
       }catch(err){
         pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
@@ -128,17 +141,23 @@
         if(v>0) linhas.push({empresa:inp.dataset.empresa,data:inp.dataset.data,valor:v});
       });
       if(!linhas.length){ msg.textContent="Nenhum valor preenchido"; msg.className="erro"; return; }
+      msg.innerHTML="Salvando... <span class='spinner'></span>";
+
       const r=await fetch(ENDPOINT,{
         method:"POST",
         headers:{"Content-Type":"text/plain"},
         body:JSON.stringify({acao:"registrarcancelamentos",linhas})
       });
       const js=await r.json();
-      if(js.status==="ok"){ msg.textContent="Salvo com sucesso"; msg.className="sucesso"; carregarCancelamentos(); }
+      if(js.status==="ok"){ 
+        msg.textContent="Salvo com sucesso"; 
+        msg.className="sucesso"; 
+        carregarCancelamentos(); 
+      }
       else { msg.textContent=js.msg; msg.className="erro"; }
     };
 
-    // 🔹 Abrir automaticamente se acessado direto
+    // 🔹 Abrir direto se acessar cancelamentos.html
     window.addEventListener("DOMContentLoaded", ()=>{ abrirPopupCancel(); });
   </script>
 </body>
