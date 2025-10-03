@@ -9,6 +9,8 @@
     #msg{margin-left:12px;font-weight:bold}
     .sucesso{color:green}
     .erro{color:red}
+    .toggle{cursor:pointer;color:#1e40af;font-weight:bold;display:inline-block;margin-top:12px}
+    .hidden{display:none}
   </style>
 </head>
 <body>
@@ -18,28 +20,33 @@
       <span class="fechar" onclick="window.location.href='config.html'">✖</span>
       <h2>Cancelamentos</h2>
 
-      <form id="formCancel">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Empresa</th>
-              <th>Valor Cancelado</th>
-            </tr>
-          </thead>
-          <tbody id="tabelaCancel"></tbody>
-        </table>
+      <!-- PENDENTES -->
+      <h3>Dias pendentes</h3>
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+        </thead>
+        <tbody id="tbodyPend"></tbody>
+      </table>
 
-        <div style="display:flex;align-items:center;margin-top:12px;gap:10px">
-          <button type="submit" class="confirmar" id="btnSalvar">Salvar</button>
-          <span id="msg"></span>
-        </div>
-      </form>
+      <!-- Lançados ocultos -->
+      <div class="toggle" onclick="toggleLancados()">+ Ver lançados</div>
+      <table class="hidden" id="tbLancados">
+        <thead>
+          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
+        </thead>
+        <tbody id="tbodyLanc"></tbody>
+      </table>
+
+      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+        <button type="button" class="confirmar" id="btnSalvar">Salvar</button>
+        <span id="msg"></span>
+      </div>
     </div>
   </div>
 
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzTlo1VtHaILY0WTCPmSZm7VqThouOS_a7uymLyIqZi4D9Iw7Mwmd901NoKludUiLyBDQ/exec"; // 🔹 troque pelo seu link de implantação
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzTlo1VtHaILY0WTCPmSZm7VqThouOS_a7uymLyIqZi4D9Iw7Mwmd901NoKludUiLyBDQ/exec"; // 🔹 troque pelo seu link do GAS
 
     function formatBR(dateStr){
       if(!dateStr) return "";
@@ -53,56 +60,66 @@
       v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
       el.value="R$ "+v;
     }
-    function toNumber(s){ return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0); }
+    function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
 
-    async function carregarCancel(){
-      const tbody=document.getElementById("tabelaCancel");
-      tbody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
+    async function carregarCancelamentos(){
+      const pendBody=document.getElementById("tbodyPend");
+      const lancBody=document.getElementById("tbodyLanc");
+      pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
+      lancBody.innerHTML="";
       try{
+        // 🔹 Puxa lista completa
         const res=await fetch(ENDPOINT+"?acao=listarCancelamentos",{cache:"no-store"});
         const data=await res.json();
-        tbody.innerHTML="";
-
-        if(data.status!=="ok"){
-          tbody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
+        pendBody.innerHTML="";
+        if(data.status!=="ok"){ 
+          pendBody.innerHTML=`<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
           return;
         }
 
+        let pendCount=0;
         data.dados.forEach(item=>{
           const tr=document.createElement("tr");
           tr.innerHTML=`
             <td>${formatBR(item.data)}</td>
             <td>${item.empresa}</td>
-            <td><input type="text" value="${item.valor? "R$ "+item.valor.toFixed(2).replace(".",",") : ""}"
-                  class="moeda" data-empresa="${item.empresa}" data-data="${item.data}"></td>
-          `;
-          tr.querySelector(".moeda").addEventListener("input",ev=>maskMoeda(ev.target));
-          tbody.appendChild(tr);
+            <td>
+              <input type="text" value="${item.valor>0? "R$ "+item.valor.toFixed(2).replace(".",",") : ""}"
+                class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" ${item.valor>0?"disabled":""}>
+            </td>`;
+          const input=tr.querySelector("input");
+          if(item.valor>0){
+            lancBody.appendChild(tr);
+          }else{
+            input.addEventListener("input",ev=>maskMoeda(ev.target));
+            pendBody.appendChild(tr);
+            pendCount++;
+          }
         });
+
+        if(pendCount===0) pendBody.innerHTML="<tr><td colspan=3>Nenhum pendente</td></tr>";
+
       }catch(err){
-        tbody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
+        pendBody.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
       }
     }
 
-    document.getElementById("formCancel").addEventListener("submit", async (e)=>{
-      e.preventDefault();
+    function toggleLancados(){
+      document.getElementById("tbLancados").classList.toggle("hidden");
+    }
+
+    document.getElementById("btnSalvar").onclick=async ()=>{
       const msg=document.getElementById("msg");
       msg.textContent="";
-      const btn=document.getElementById("btnSalvar");
-      btn.disabled=true; btn.textContent="Salvando...";
-
       const linhas=[];
-      document.querySelectorAll("#tabelaCancel .moeda").forEach(inp=>{
+      document.querySelectorAll("#tbodyPend .moeda").forEach(inp=>{
         const v=toNumber(inp.value);
         if(v>0) linhas.push({empresa:inp.dataset.empresa,data:inp.dataset.data,valor:v});
       });
-
       if(!linhas.length){
         msg.className="erro"; msg.textContent="Nenhum valor informado";
-        btn.disabled=false; btn.textContent="Salvar";
         return;
       }
-
       try{
         const r=await fetch(ENDPOINT,{
           method:"POST",
@@ -111,19 +128,18 @@
         });
         const js=await r.json();
         if(js.status==="ok"){
-          msg.className="sucesso"; msg.textContent="Sucesso";
-          await carregarCancel();
-        } else {
+          msg.className="sucesso"; msg.textContent="Salvo com sucesso";
+          await carregarCancelamentos();
+        }else{
           msg.className="erro"; msg.textContent=js.msg||"Erro";
         }
       }catch(err){
         msg.className="erro"; msg.textContent="Erro: "+err.message;
-      }finally{
-        btn.disabled=false; btn.textContent="Salvar";
       }
-    });
+    };
 
-    carregarCancel();
+    // autoabrir
+    window.addEventListener("DOMContentLoaded", carregarCancelamentos);
   </script>
 </body>
 </html>
