@@ -1,224 +1,171 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Cancelamentos</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .popup {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,.5);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9999;
-    }
-    .popup-content {
-      background: #fff;
-      border-radius: 8px;
-      padding: 20px;
-      width: 600px;
-      max-width: 95%;
-      box-shadow: 0 6px 20px rgba(0,0,0,.25);
-    }
-    .popup-content h2 {
-      margin: 0 0 10px 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px 8px;
-      text-align: center;
-    }
-    th {
-      background: #1e40af;
-      color: white;
-    }
-    .btn {
-      background: #1e40af;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .link {
-      color: #1e40af;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    input.valor-input {
-      width: 100px;
-      padding: 3px;
-      text-align: right;
-    }
+    .hidden{display:none}
+    .erro{color:#d00;text-align:center;padding:10px}
+    .info{color:#334155;text-align:center;padding:8px}
+    .muted{color:#64748b}
+    .link{cursor:pointer;color:#4f46e5;font-weight:600;text-decoration:none}
+    .link:hover{text-decoration:underline}
   </style>
 </head>
 <body>
-<div class="popup" id="popup">
+
+<!-- POPUP (abre direto nesta página) -->
+<div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
+    <span class="fechar" onclick="fecharPopup()">✖</span>
     <h2>Cancelamentos</h2>
-    <h4>Dias pendentes</h4>
-    <table id="tblPendentes">
+
+    <h3>Dias pendentes</h3>
+    <table id="tbPend">
       <thead>
-        <tr>
-          <th>Data</th>
-          <th>Empresa</th>
-          <th>Valor</th>
-        </tr>
+        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr><td colspan="3" class="info">Carregando…</td></tr>
+      </tbody>
     </table>
 
-    <div class="link" id="toggleLancados">+ Ver lançados</div>
+    <div style="margin:10px 0">
+      <a id="btnToggleLanc" class="link" href="#" onclick="toggleLancados(event)">+ Ver lançados</a>
+    </div>
 
-    <table id="tblLancados" style="display:none">
+    <table id="tbLanc" class="hidden">
       <thead>
-        <tr>
-          <th>Data</th>
-          <th>Empresa</th>
-          <th>Valor</th>
-        </tr>
+        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr><td colspan="3" class="info">—</td></tr>
+      </tbody>
     </table>
 
-    <button class="btn" id="btnSalvar">Salvar</button>
+    <div id="msg" class="muted" style="margin-top:10px"></div>
   </div>
 </div>
 
 <script>
-const URL_GAS = "https://script.google.com/macros/s/AKfycbwBBHddS441GKa4iVkfZ8QAEeRca55hwcvCZ03zI3L_AC7DmWpLwkmxOJXHdjwE654rJg/exec"; // <-- coloque seu endpoint
+  // 🔗 Cole aqui o URL do seu Web App (GAS publicado)
+  const API_URL = "https://script.google.com/macros/s/AKfycbzy2ul5jlmfVOnT4gJ4XDyjuIEdwrOUfctue9YH5fMIVJ1D6H1YBDPNkEGBcuLCWcYxvA/exec";
 
-document.addEventListener("DOMContentLoaded", () => {
-  carregarPendentes();
-  document.getElementById("toggleLancados").onclick = toggleLancados;
-  document.getElementById("btnSalvar").onclick = salvarPendentes;
-});
+  const elPend = document.querySelector('#tbPend tbody');
+  const elLanc = document.querySelector('#tbLanc tbody');
+  const elMsg  = document.getElementById('msg');
+  const elBtnToggle = document.getElementById('btnToggleLanc');
+  let lancadosCarregados = false;
 
-function carregarPendentes() {
-  fetch(`${URL_GAS}?acao=statusCancelamentos`)
-    .then(r => r.json())
-    .then(json => {
-      if (json.status !== "ok") throw new Error(json.msg);
-      const corpo = document.querySelector("#tblPendentes tbody");
-      corpo.innerHTML = "";
+  function fecharPopup(){
+    document.getElementById('popupCancelamentos').style.display = 'none';
+  }
 
-      json.companies.forEach(emp => {
-        emp.pendentes.forEach(data => {
-          const tr = document.createElement("tr");
-          const tdData = document.createElement("td");
-          const tdEmp = document.createElement("td");
-          const tdVal = document.createElement("td");
+  function formatBR(iso){
+    if(!iso || typeof iso !== 'string' || !iso.includes('-')) return '';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
-          // data formatada dd/mm/yyyy
-          const d = new Date(data);
-          tdData.textContent = d.toLocaleDateString("pt-BR");
+  function formatCurrency(v){
+    // trata null/undefined/string vazia/“0,00”
+    if (v === null || v === undefined || v === '') return '—';
+    const num = Number(v);
+    if (!isFinite(num)) return '—';
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
 
-          tdEmp.textContent = emp.empresa;
+  async function carregarPendentes(){
+    elPend.innerHTML = `<tr><td colspan="3" class="info">Carregando…</td></tr>`;
+    elMsg.textContent = '';
 
-          // input de valor
-          const inp = document.createElement("input");
-          inp.type = "number";
-          inp.min = "0";
-          inp.step = "0.01";
-          inp.className = "valor-input";
-          inp.dataset.empresa = emp.empresa;
-          inp.dataset.data = data;
-          tdVal.appendChild(inp);
+    try{
+      const r = await fetch(`${API_URL}?acao=statusCancelamentos`, { cache: 'no-store' });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const js = await r.json();
 
-          tr.appendChild(tdData);
-          tr.appendChild(tdEmp);
-          tr.appendChild(tdVal);
-          corpo.appendChild(tr);
+      elPend.innerHTML = '';
+      const companies = Array.isArray(js?.companies) ? js.companies : [];
+
+      if (companies.length === 0){
+        elPend.innerHTML = `<tr><td colspan="3" class="info">Nenhum pendente</td></tr>`;
+        return;
+      }
+
+      let totalLinhas = 0;
+      companies.forEach(c => {
+        const pend = Array.isArray(c.pendentes) ? c.pendentes : [];
+        pend.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${formatBR(d)}</td>
+            <td>${c.empresa || ''}</td>
+            <td>—</td>`;
+          elPend.appendChild(tr);
+          totalLinhas++;
         });
       });
-    })
-    .catch(err => {
-      document.querySelector("#tblPendentes tbody").innerHTML =
-        `<tr><td colspan="3" style="color:red">Erro: ${err.message}</td></tr>`;
-    });
-}
 
-function toggleLancados() {
-  const tbl = document.getElementById("tblLancados");
-  if (tbl.style.display === "none") {
-    tbl.style.display = "";
-    document.getElementById("toggleLancados").textContent = "- Ocultar lançados";
-    carregarLancados();
-  } else {
-    tbl.style.display = "none";
-    document.getElementById("toggleLancados").textContent = "+ Ver lançados";
-  }
-}
+      if (totalLinhas === 0){
+        elPend.innerHTML = `<tr><td colspan="3" class="info">Nenhum pendente</td></tr>`;
+      }
 
-function carregarLancados() {
-  fetch(`${URL_GAS}?acao=listarCancelamentos`)
-    .then(r => r.json())
-    .then(json => {
-      if (json.status !== "ok") throw new Error(json.msg);
-      const corpo = document.querySelector("#tblLancados tbody");
-      corpo.innerHTML = "";
-      json.dados.forEach(reg => {
-        const tr = document.createElement("tr");
-        const tdData = document.createElement("td");
-        const tdEmp = document.createElement("td");
-        const tdVal = document.createElement("td");
-
-        const d = new Date(reg.data);
-        tdData.textContent = d.toLocaleDateString("pt-BR");
-        tdEmp.textContent = reg.empresa;
-        tdVal.textContent = (reg.valor != null && !isNaN(reg.valor))
-          ? Number(reg.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})
-          : "—";
-
-        tr.appendChild(tdData);
-        tr.appendChild(tdEmp);
-        tr.appendChild(tdVal);
-        corpo.appendChild(tr);
-      });
-    })
-    .catch(err => {
-      document.querySelector("#tblLancados tbody").innerHTML =
-        `<tr><td colspan="3" style="color:red">Erro: ${err.message}</td></tr>`;
-    });
-}
-
-function salvarPendentes() {
-  const inputs = document.querySelectorAll("#tblPendentes input.valor-input");
-  const linhas = [];
-  inputs.forEach(inp => {
-    if (inp.value) {
-      linhas.push({
-        empresa: inp.dataset.empresa,
-        data: inp.dataset.data,
-        valor: parseFloat(inp.value),
-        item: "Itens diversos"
-      });
+    }catch(err){
+      elPend.innerHTML = `<tr><td colspan="3" class="erro">Erro: ${err.message || err}</td></tr>`;
     }
-  });
-
-  if (!linhas.length) {
-    alert("Nenhum valor preenchido.");
-    return;
   }
 
-  fetch(URL_GAS, {
-    method: "POST",
-    body: JSON.stringify({ acao: "registrarCancelamentos", linhas }),
-    headers: { "Content-Type": "application/json" }
-  })
-    .then(r => r.json())
-    .then(json => {
-      if (json.status !== "ok") throw new Error(json.msg);
-      alert("Cancelamentos registrados com sucesso!");
-      carregarPendentes();
-    })
-    .catch(err => alert("Erro ao salvar: " + err.message));
-}
+  function toggleLancados(ev){
+    ev?.preventDefault?.();
+    const table = document.getElementById('tbLanc');
+    table.classList.toggle('hidden');
+    const aberto = !table.classList.contains('hidden');
+    elBtnToggle.textContent = aberto ? '− Ocultar lançados' : '+ Ver lançados';
+    if (aberto && !lancadosCarregados) carregarLancados();
+  }
+
+  async function carregarLancados(){
+    elLanc.innerHTML = `<tr><td colspan="3" class="info">Carregando…</td></tr>`;
+    elMsg.textContent = '';
+
+    try{
+      const r = await fetch(`${API_URL}?acao=listarCancelamentos`, { cache: 'no-store' });
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const js = await r.json();
+
+      elLanc.innerHTML = '';
+      const dados = Array.isArray(js?.dados) ? js.dados : [];
+
+      if (dados.length === 0){
+        elLanc.innerHTML = `<tr><td colspan="3" class="info">Nenhum lançamento encontrado</td></tr>`;
+        lancadosCarregados = true;
+        return;
+      }
+
+      // Ordena por data asc (opcional)
+      dados.sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+      dados.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatBR(l.data)}</td>
+          <td>${l.empresa || ''}</td>
+          <td>${formatCurrency(l.valor)}</td>`;
+        elLanc.appendChild(tr);
+      });
+
+      lancadosCarregados = true;
+
+    }catch(err){
+      elLanc.innerHTML = `<tr><td colspan="3" class="erro">Erro: ${err.message || err}</td></tr>`;
+    }
+  }
+
+  // Carrega pendentes ao abrir
+  document.addEventListener('DOMContentLoaded', carregarPendentes);
 </script>
+
 </body>
 </html>
