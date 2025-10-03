@@ -12,11 +12,25 @@
     .muted{color:#64748b}
     .link{cursor:pointer;color:#4f46e5;font-weight:600;text-decoration:none}
     .link:hover{text-decoration:underline}
+    input.valor-edit {
+      width: 90px;
+      text-align: right;
+      padding: 3px;
+    }
+    .btn {
+      margin-top: 12px;
+      background:#4f46e5;
+      color:#fff;
+      border:none;
+      padding:8px 14px;
+      border-radius:4px;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
 
-<!-- POPUP (abre direto nesta página) -->
+<!-- POPUP -->
 <div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
     <span class="fechar" onclick="fecharPopup()">✖</span>
@@ -31,6 +45,8 @@
         <tr><td colspan="3" class="info">Carregando…</td></tr>
       </tbody>
     </table>
+
+    <button class="btn" onclick="salvarPendentes()">Salvar</button>
 
     <div style="margin:10px 0">
       <a id="btnToggleLanc" class="link" href="#" onclick="toggleLancados(event)">+ Ver lançados</a>
@@ -70,7 +86,6 @@
   }
 
   function formatCurrency(v){
-    // trata null/undefined/string vazia/“0,00”
     if (v === null || v === undefined || v === '') return '—';
     const num = Number(v);
     if (!isFinite(num)) return '—';
@@ -102,7 +117,7 @@
           tr.innerHTML = `
             <td>${formatBR(d)}</td>
             <td>${c.empresa || ''}</td>
-            <td>—</td>`;
+            <td><input type="number" step="0.01" class="valor-edit" data-empresa="${c.empresa}" data-data="${d}" /></td>`;
           elPend.appendChild(tr);
           totalLinhas++;
         });
@@ -144,7 +159,6 @@
         return;
       }
 
-      // Ordena por data asc (opcional)
       dados.sort((a,b) => (a.data||'').localeCompare(b.data||''));
 
       dados.forEach(l => {
@@ -163,9 +177,44 @@
     }
   }
 
-  // Carrega pendentes ao abrir
+  async function salvarPendentes(){
+    const inputs = document.querySelectorAll('#tbPend input.valor-edit');
+    const linhas = [];
+
+    inputs.forEach(inp => {
+      if (inp.value && !isNaN(inp.value)) {
+        linhas.push({
+          empresa: inp.dataset.empresa,
+          data: inp.dataset.data,
+          valor: parseFloat(inp.value),
+          item: "Itens diversos"
+        });
+      }
+    });
+
+    if (!linhas.length) {
+      alert("Preencha pelo menos um valor para salvar.");
+      return;
+    }
+
+    try{
+      const r = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ acao: "registrarCancelamentos", linhas }),
+        headers: { "Content-Type": "application/json" }
+      });
+      const js = await r.json();
+      if(js.status !== 'ok') throw new Error(js.msg);
+      alert("Registros salvos!");
+      carregarPendentes();
+    }catch(err){
+      alert("Erro ao salvar: " + err.message);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', carregarPendentes);
 </script>
 
 </body>
 </html>
+
