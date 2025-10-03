@@ -3,31 +3,91 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Configurações - Painel ADM</title>
+  <title>Painel ADM - Configurações</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body{margin:0;font-family:Arial,sans-serif;background:#f5f7fa;display:flex;height:100vh}
+    aside{width:220px;background:#1e40af;color:#fff;display:flex;flex-direction:column}
+    aside h2{padding:20px 15px;font-size:18px;border-bottom:1px solid rgba(255,255,255,.2)}
+    aside button{background:none;border:none;color:#fff;text-align:left;padding:15px;cursor:pointer;font-size:15px;width:100%}
+    aside button:hover{background:rgba(255,255,255,.1)}
+    main{flex:1;padding:20px;overflow:auto}
+    h1{margin-bottom:15px;color:#1e3a8a}
+
+    .grid{display:flex;gap:20px;flex-wrap:wrap}
+    .card{
+      background:#fff;min-width:140px;height:120px;border-radius:12px;
+      box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:pointer;display:flex;
+      align-items:center;justify-content:center;text-align:center;font-weight:bold;
+      color:#1e3a8a;transition:.2s ease;position:relative;
+    }
+    .card:hover{background:#f0f4ff;transform:scale(1.05)}
+
+    /* Badge vermelha */
+    .badge{
+      position:absolute;top:8px;right:12px;background:red;color:#fff;
+      border-radius:50%;padding:2px 6px;font-size:12px;display:none;
+    }
+  </style>
 </head>
 <body>
   <aside>
-    <h2>☰ Menu</h2>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+    <h2>⚙️ Menu</h2>
+    <button onclick="abrirModulo('config')">Configurações</button>
   </aside>
 
   <main>
     <h1>Painel ADM</h1>
-    <section id="config">
+    <section id="config" class="modulo">
       <h2>Configurações</h2>
       <div class="grid">
         <!-- Card Metas -->
-        <div class="card" onclick="location.href='metas.html'">
-          📊<br>Metas
-        </div>
+        <div class="card" onclick="abrirPopup('metas')">📊<br>Metas</div>
 
         <!-- Card Cancelamentos -->
-        <div class="card" onclick="location.href='cancelamentos.html'">
+        <div class="card" onclick="abrirPopup('cancelamentos')">
           🧾<br>Cancelamentos
+          <span id="badgeCancel" class="badge"></span>
         </div>
       </div>
     </section>
   </main>
+
+  <script>
+    function abrirModulo(id){
+      document.querySelectorAll(".modulo").forEach(m => m.style.display="none");
+      document.getElementById(id).style.display="block";
+    }
+    abrirModulo("config");
+
+    // abre popup em nova página (metas.html / cancelamentos.html)
+    function abrirPopup(tipo){
+      if(tipo==="metas"){
+        window.location.href="metas.html";
+      }
+      if(tipo==="cancelamentos"){
+        window.location.href="cancelamentos.html";
+      }
+    }
+
+    // 🔴 Atualiza badge de Cancelamentos
+    async function atualizarBadge(){
+      try{
+        const ENDPOINT="https://script.google.com/macros/s/AKfycbylmrjrbpn2G7mQEnu8xgkJ9UVa6Rc8r5-bPDzdHx6O4F83kCF4_O_5b7BJDNLK4im2Lg/exec"; // ajuste aqui
+        const res=await fetch(ENDPOINT+"?acao=statusCancelamentos",{cache:"no-store"});
+        const js=await res.json();
+        if(js.status!=="ok") return;
+        let totalPend=0;
+        js.companies.forEach(c=>{ totalPend+=c.pendentes.length; });
+        const badge=document.getElementById("badgeCancel");
+        if(totalPend>0){ badge.textContent=totalPend; badge.style.display="inline-block"; }
+        else { badge.style.display="none"; }
+      }catch(e){ console.error("Erro badge",e); }
+    }
+
+    atualizarBadge();
+    // atualiza badge a cada 1 min
+    setInterval(atualizarBadge,60000);
+  </script>
 </body>
 </html>
