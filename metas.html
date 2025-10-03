@@ -3,41 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Metas</title>
+  <title>Configurações - Metas</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- MENU -->
   <aside>
     <h2 onclick="location.href='index.html'">☰ Menu</h2>
-    <button class="ativo" onclick="location.href='metas.html'">📊 Metas</button>
+    <button onclick="location.href='metas.html'">📊 Metas</button>
     <button onclick="location.href='historico.html'">📖 Histórico</button>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
+    <button class="ativo" onclick="location.href='config.html'">⚙️ Configurações</button>
   </aside>
 
   <!-- CONTEÚDO -->
   <main>
-    <h1>Definir Metas</h1>
-    <form id="formMetas">
-      <table>
-        <thead>
-          <tr>
-            <th>Empresa</th>
-            <th>Meta Atual</th>
-            <th>Nova Meta</th>
-          </tr>
-        </thead>
-        <tbody id="tabelaMetas">
-          <!-- preenchido dinamicamente -->
-        </tbody>
-      </table>
-      <button type="submit" class="confirmar">Salvar Metas</button>
-      <p id="msg"></p>
-    </form>
+    <h1>Configurações</h1>
+    <div class="grid">
+      <!-- CARD METAS -->
+      <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
+    </div>
   </main>
+
+  <!-- POPUP DE METAS -->
+  <div class="popup" id="popupMetas">
+    <div class="popup-content">
+      <span class="fechar" onclick="fecharPopup()">✖</span>
+      <h2>Definir Metas</h2>
+      <form id="formMetas">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Meta Atual</th>
+              <th>Nova Meta</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMetas">
+            <!-- preenchido dinamicamente -->
+          </tbody>
+        </table>
+        <button type="submit" class="confirmar">Salvar Metas</button>
+        <p id="msg"></p>
+      </form>
+    </div>
+  </div>
 
   <script>
     const ENDPOINT = "https://script.google.com/macros/s/AKfycbxgN5Vzz3jGFGA0EvVIj-okctlPI5mszLTDuy2N-Np2YiMR2dLSPx0yE_o8yM1p5Uu0/exec";
+
+    function abrirPopup(){
+      document.getElementById("popupMetas").style.display="flex";
+      carregarMetas();
+    }
+    function fecharPopup(){
+      document.getElementById("popupMetas").style.display="none";
+    }
 
     function formatarMoeda(input){
       let valor = input.value.replace(/\D/g, "");
@@ -68,7 +88,7 @@
         });
       } catch (e) {
         document.getElementById("msg").style.color = "red";
-        document.getElementById("msg").innerText = "Erro ao carregar";
+        document.getElementById("msg").innerText = "Erro ao carregar metas";
       }
     }
 
@@ -106,8 +126,6 @@
 
       carregarMetas();
     });
-
-    carregarMetas(); // carrega na abertura
   </script>
 </body>
 </html>
