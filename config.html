@@ -40,13 +40,14 @@
               <th>Empresa</th>
               <th>Meta Atual</th>
               <th>Nova Meta</th>
+              <th>Atingido</th>
             </tr>
           </thead>
           <tbody id="tabelaMetas"></tbody>
         </table>
 
-        <div style="display:flex;align-items:center;margin-top:8px">
-          <button type="submit" class="confirmar" id="btnSalvar">Salvar Metas</button>
+        <div style="display:flex;align-items:center;margin-top:8px;gap:10px">
+          <button type="submit" class="confirmar" id="btnSalvar">Salvar</button>
           <span id="msg"></span>
         </div>
       </form>
@@ -77,7 +78,7 @@
 
     async function carregarMetas(){
       const tbody = document.getElementById("tabelaMetas");
-      tbody.innerHTML = "<tr><td colspan='3'>Carregando...</td></tr>";
+      tbody.innerHTML = "<tr><td colspan='4'>Carregando...</td></tr>";
       try{
         const res = await fetch(ENDPOINT+"?acao=listarMetas", { cache: "no-store" });
         const data = await res.json();
@@ -88,13 +89,16 @@
           tr.innerHTML = `
             <td>${row.empresa}</td>
             <td class="meta-atual" data-empresa="${row.empresa}">R$ ${atual}</td>
-            <td><input type="text" class="moeda" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
+            <td><input type="text" class="moeda nova" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
+            <td><input type="text" class="moeda atingido" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
           `;
-          tr.querySelector(".moeda").addEventListener("input", e => formatarMoeda(e.target));
+          tr.querySelectorAll(".moeda").forEach(inp=>{
+            inp.addEventListener("input", e => formatarMoeda(e.target));
+          });
           tbody.appendChild(tr);
         });
       }catch(err){
-        tbody.innerHTML = `<tr><td colspan="3" style="color:red">Erro ao listar metas: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="color:red">Erro ao listar metas: ${err.message}</td></tr>`;
       }
     }
 
@@ -105,37 +109,42 @@
       msg.textContent = "";
       btn.disabled = true; btn.innerHTML = 'Salvando...';
 
-      const inputs = Array.from(document.querySelectorAll(".moeda"));
-      const payload = inputs
-        .map(i => ({ empresa: i.dataset.empresa, meta: moedaParaNumero(i.value), input:i }))
+      const novas = Array.from(document.querySelectorAll(".nova"))
+        .map(i => ({empresa: i.dataset.empresa, meta: moedaParaNumero(i.value), input:i}))
         .filter(x => x.meta > 0);
 
-      if(payload.length === 0){
-        msg.className = "erro";
-        msg.textContent = "Informe pelo menos uma meta.";
-        btn.disabled = false; btn.textContent = "Salvar Metas";
-        return;
-      }
+      const atingidos = Array.from(document.querySelectorAll(".atingido"))
+        .map(i => ({empresa: i.dataset.empresa, valor: moedaParaNumero(i.value), input:i}))
+        .filter(x => x.valor > 0);
+
+      // gera data de ontem
+      const ontem = new Date();
+      ontem.setDate(ontem.getDate()-1);
+      const dataOntem = ontem.toISOString().split("T")[0]; // YYYY-MM-DD
 
       try{
         const res = await fetch(ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ acao: "atualizarMetas", dados: payload.map(p=>({empresa:p.empresa,meta:p.meta})) })
+          body: JSON.stringify({
+            acao:"salvarMetasEAtingidos",
+            novas: novas.map(p=>({empresa:p.empresa,meta:p.meta})),
+            atingidos: atingidos.map(p=>({empresa:p.empresa,valor:p.valor,data:dataOntem}))
+          })
         });
         const resp = await res.json();
         if(resp.status === "ok"){
           msg.className = "sucesso";
           msg.textContent = "Sucesso";
 
-          // atualizar os valores em "Meta Atual" sem recarregar
-          payload.forEach(p=>{
+          novas.forEach(p=>{
             const cell = document.querySelector(`.meta-atual[data-empresa="${p.empresa}"]`);
             if(cell){
               cell.textContent = "R$ " + p.meta.toLocaleString("pt-BR",{minimumFractionDigits:2});
-              p.input.value = ""; // limpa campo
+              p.input.value = "";
             }
           });
+          atingidos.forEach(p=>{ p.input.value = ""; });
 
         } else {
           msg.className = "erro";
@@ -145,7 +154,7 @@
         msg.className = "erro";
         msg.textContent = "Erro: " + err.message;
       }finally{
-        btn.disabled = false; btn.textContent = "Salvar Metas";
+        btn.disabled = false; btn.textContent = "Salvar";
       }
     });
   </script>
