@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Painel ADM</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +14,20 @@
 
   <main>
     <h1>Painel ADM</h1>
-    <p>Bem-vindo! Selecione um módulo no menu lateral.</p>
+    <section id="config" class="modulo">
+      <h2>Configurações</h2>
+      <div class="grid">
+        <!-- Card Metas -->
+        <div class="card" onclick="location.href='metas.html'">
+          📊<br>Metas
+        </div>
+
+        <!-- Card Cancelamentos -->
+        <div class="card" onclick="location.href='cancelamentos.html'">
+          🧾<br>Cancelamentos
+        </div>
+      </div>
+    </section>
   </main>
 </body>
 </html>
