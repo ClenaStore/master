@@ -53,16 +53,15 @@ h1 {
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
-  gap: 20px;
+  display: flex;
+  gap: 20px;   /* espaço entre os cards */
+  flex-wrap: wrap; /* permite quebrar se a tela for muito pequena */
 }
 
-/* Card quadrado pequeno */
 .card {
   background: #fff;
-  width: 120px;
-  height: 120px;
+  width: 150px;
+  height: 150px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,.1);
   cursor: pointer;
@@ -72,9 +71,14 @@ h1 {
   text-align: center;
   font-weight: bold;
   color: #1e3a8a;
-  transition: all .2s ease;
+  transition: .2s ease;
 }
-.card:hover { background: #f0f4ff; transform: scale(1.05); }
+
+.card:hover {
+  background: #f0f4ff;
+  transform: scale(1.05);
+}
+
 
 /* POPUP */
 .popup {
