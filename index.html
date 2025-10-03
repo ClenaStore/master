@@ -13,78 +13,120 @@
     aside button:hover{background:rgba(255,255,255,.1)}
     main{flex:1;padding:20px;overflow:auto}
     h1{margin-bottom:15px;color:#1e3a8a}
-    .card{background:#fff;padding:15px;margin-bottom:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-    label{display:block;margin:8px 0 4px}
-    input,select,button{width:100%;padding:8px;border:1px solid #ccc;border-radius:5px;margin-bottom:12px}
-    button.confirmar{background:#1e40af;color:#fff;border:none;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+    .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:pointer;text-align:center;font-weight:bold;color:#1e3a8a}
+    .card:hover{background:#f0f4ff}
+    /* POPUP */
+    .popup{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
+    .popup-content{background:#fff;padding:20px;border-radius:10px;max-width:800px;width:90%;max-height:90vh;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #ddd;padding:10px;text-align:center}
+    th{background:#1e40af;color:#fff}
+    input{width:100%;padding:6px}
+    button.confirmar{margin-top:10px;padding:10px 20px;background:#1e40af;color:#fff;border:none;border-radius:6px;cursor:pointer}
     button.confirmar:hover{background:#3749db}
-    #msg{font-weight:bold;margin-top:10px}
+    .fechar{float:right;cursor:pointer;color:#888;font-size:18px}
+    .fechar:hover{color:#000}
   </style>
 </head>
 <body>
   <!-- MENU LATERAL -->
   <aside>
     <h2>⚙️ Configurações</h2>
-    <button onclick="abrirModulo('metas')">Definir Metas</button>
-    <!-- depois você pode incluir: Definir Limites, Alertas, Usuários etc -->
+    <button onclick="abrirModulo('config')">Configurações</button>
   </aside>
 
   <!-- CONTEÚDO PRINCIPAL -->
   <main>
     <h1>Painel ADM</h1>
 
-    <!-- MODULO DE METAS -->
-    <section id="metas" class="modulo">
-      <h2>Definir Metas</h2>
-      <div class="card">
-        <form id="metaForm">
-          <label for="empresa">Empresa:</label>
-          <select id="empresa" required>
-            <option value="MERCATTO DELÍCIA">MERCATTO DELÍCIA</option>
-            <option value="DELICIA GOURMET">DELICIA GOURMET</option>
-            <option value="PADARIA DELÍCIA">PADARIA DELÍCIA</option>
-            <option value="VILLA GOURMET">VILLA GOURMET</option>
-            <option value="M. KIDS">M. KIDS</option>
-          </select>
-
-          <label for="previsto">Meta Prevista (R$):</label>
-          <input type="number" id="previsto" step="0.01" required>
-
-          <label for="realizado">Valor Realizado (R$):</label>
-          <input type="number" id="realizado" step="0.01" required>
-
-          <button type="submit" class="confirmar">Confirmar</button>
-        </form>
-        <p id="msg"></p>
+    <!-- MODULO CONFIGURAÇÕES -->
+    <section id="config" class="modulo">
+      <h2>Configurações</h2>
+      <div class="grid">
+        <div class="card" onclick="abrirPopup()">📊 Metas</div>
+        <!-- futuro: outros cards ex: Limites, Alertas -->
       </div>
     </section>
   </main>
 
-  <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyQPrI5TOv-28bcXc-4NXQds8mC-61RJ4A-D_FFgFYosdOnsZA6Gtw9EWNyNk0CTGhN2w/exec"; // coloque o Web App do GAS
+  <!-- POPUP DE METAS -->
+  <div class="popup" id="popupMetas">
+    <div class="popup-content">
+      <span class="fechar" onclick="fecharPopup()">✖</span>
+      <h2>Definir Metas</h2>
+      <form id="formMetas">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Meta Atual</th>
+              <th>Nova Meta</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaMetas">
+            <!-- preenchido dinamicamente -->
+          </tbody>
+        </table>
+        <button type="submit" class="confirmar">Salvar Metas</button>
+      </form>
+      <p id="msg"></p>
+    </div>
+  </div>
 
-    // alternar módulos
+  <script>
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbzEqWsyBVcsLEYaZpAw1UIlk0RYTHCsHnB3-cLIvwqKb9qRQGoedmAaBpMfRhqUKb_M/exec"; // substituir pelo seu GAS publicado
+
     function abrirModulo(id){
       document.querySelectorAll(".modulo").forEach(sec=>sec.style.display="none");
       document.getElementById(id).style.display="block";
     }
-    abrirModulo("metas"); // abre por padrão
+    abrirModulo("config"); // abre por padrão
 
-    // envio metas
-    document.getElementById("metaForm").addEventListener("submit", async (e)=>{
+    function abrirPopup(){
+      document.getElementById("popupMetas").style.display="flex";
+      carregarMetas();
+    }
+    function fecharPopup(){
+      document.getElementById("popupMetas").style.display="none";
+    }
+
+    // Carregar metas atuais da planilha
+    async function carregarMetas(){
+      const res = await fetch(ENDPOINT+"?acao=listarMetas");
+      const data = await res.json();
+      const tbody = document.getElementById("tabelaMetas");
+      tbody.innerHTML = "";
+      data.forEach(row=>{
+        tbody.innerHTML += `
+          <tr>
+            <td>${row.empresa}</td>
+            <td>R$ ${row.previsto.toLocaleString("pt-BR")}</td>
+            <td><input type="number" step="0.01" name="novaMeta" data-empresa="${row.empresa}"></td>
+          </tr>
+        `;
+      });
+    }
+
+    // Salvar novas metas
+    document.getElementById("formMetas").addEventListener("submit", async (e)=>{
       e.preventDefault();
-      const empresa = document.getElementById("empresa").value;
-      const previsto = parseFloat(document.getElementById("previsto").value);
-      const realizado = parseFloat(document.getElementById("realizado").value);
-
-      const res = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({acao:"salvarMeta",empresa,previsto,realizado})
+      const inputs = document.querySelectorAll("input[name='novaMeta']");
+      let novas = [];
+      inputs.forEach(i=>{
+        if(i.value){
+          novas.push({empresa:i.dataset.empresa,meta:parseFloat(i.value)});
+        }
       });
 
-      const data = await res.json();
-      document.getElementById("msg").innerHTML = data.msg;
+      const res = await fetch(ENDPOINT, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({acao:"atualizarMetas",dados:novas})
+      });
+      const resp = await res.json();
+      document.getElementById("msg").innerText = resp.msg;
+      carregarMetas(); // atualiza a tabela
     });
   </script>
 </body>
