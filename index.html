@@ -1,174 +1,22 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel ADM</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;background:#f5f7fa;display:flex;height:100vh}
-    aside{width:220px;background:#1e40af;color:#fff;display:flex;flex-direction:column}
-    aside h2{padding:20px 15px;font-size:18px;border-bottom:1px solid rgba(255,255,255,.2)}
-    aside button{background:none;border:none;color:#fff;text-align:left;padding:15px;cursor:pointer;font-size:15px;width:100%}
-    aside button:hover{background:rgba(255,255,255,.1)}
-    main{flex:1;padding:20px;overflow:auto}
-    h1{margin-bottom:15px;color:#1e3a8a}
-
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:20px}
-    .card{
-      background:#fff;width:120px;height:120px;border-radius:12px;
-      box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:pointer;display:flex;
-      align-items:center;justify-content:center;text-align:center;font-weight:bold;color:#1e3a8a;
-      transition:.2s ease;
-    }
-    .card:hover{background:#f0f4ff;transform:scale(1.05)}
-
-    .popup{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000}
-    .popup-content{background:#fff;padding:20px;border-radius:10px;max-width:900px;width:92%;max-height:90vh;overflow:auto}
-    .fechar{float:right;cursor:pointer;color:#888;font-size:18px}
-    .fechar:hover{color:#000}
-
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #e5e7eb;padding:12px;text-align:center}
-    th{background:#173ea5;color:#fff}
-    input{width:100%;padding:8px}
-
-    button.confirmar{
-      margin-top:12px;padding:10px 18px;background:#173ea5;color:#fff;border:none;border-radius:6px;cursor:pointer
-    }
-    button.confirmar:hover{background:#3156d3}
-    .spinner{border:3px solid #f3f3f3;border-top:3px solid #fff;border-radius:50%;width:16px;height:16px;animation:spin 1s linear infinite;display:inline-block;margin-left:8px;vertical-align:middle}
-    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-    #msg{margin-left:12px;font-weight:bold}
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <aside>
-    <h2>⚙️ Configurações</h2>
-    <button onclick="abrirModulo('config')">Configurações</button>
+    <h2>☰ Menu</h2>
+    <button onclick="location.href='metas.html'">📊 Metas</button>
+    <button onclick="location.href='historico.html'">📖 Histórico</button>
+    <button onclick="location.href='config.html'">⚙️ Configurações</button>
   </aside>
 
   <main>
     <h1>Painel ADM</h1>
-    <section id="config" class="modulo">
-      <h2>Configurações</h2>
-      <div class="grid">
-        <div class="card" onclick="abrirPopup()">📊<br>Metas</div>
-      </div>
-    </section>
+    <p>Bem-vindo! Selecione um módulo no menu lateral.</p>
   </main>
-
-  <!-- POPUP -->
-  <div class="popup" id="popupMetas">
-    <div class="popup-content">
-      <span class="fechar" onclick="fecharPopup()">✖</span>
-      <h2>Definir Metas</h2>
-
-      <form id="formMetas">
-        <table>
-          <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>Meta Atual</th>
-              <th>Nova Meta</th>
-            </tr>
-          </thead>
-          <tbody id="tabelaMetas"></tbody>
-        </table>
-
-        <div style="display:flex;align-items:center;margin-top:8px">
-          <button type="submit" class="confirmar" id="btnSalvar">Salvar Metas</button>
-          <span id="msg"></span>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    // 🔗 troque pelo SEU link /exec do WebApp
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbxvUdmv-9Cl0wrIl8NsOeclaRPtDfr5S5xqMCbC5Cw1npc8nzavrKhAU_HomeWi4mWg/exec";
-
-    function abrirModulo(id){
-      document.querySelectorAll(".modulo").forEach(m => m.style.display="none");
-      document.getElementById(id).style.display="block";
-    }
-    abrirModulo("config");
-
-    function abrirPopup(){ document.getElementById("popupMetas").style.display="flex"; carregarMetas(); }
-    function fecharPopup(){ document.getElementById("popupMetas").style.display="none"; }
-
-    // máscara moeda enquanto digita
-    function formatarMoeda(input){
-      let v = input.value.replace(/\D/g,"");
-      if(!v){ input.value=""; return; }
-      v = (parseInt(v,10)/100).toFixed(2).replace(".",",");
-      v = v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
-      input.value = "R$ " + v;
-    }
-    function moedaParaNumero(s){ return Number(s.replace(/[R$\s\.]/g,"").replace(",",".") || ""); }
-
-    async function carregarMetas(){
-      const tbody = document.getElementById("tabelaMetas");
-      tbody.innerHTML = "<tr><td colspan='3'>Carregando...</td></tr>";
-      try{
-        const res = await fetch(ENDPOINT+"?acao=listarMetas", { cache: "no-store" });
-        const data = await res.json();
-        tbody.innerHTML = "";
-        data.forEach(row=>{
-          const atual = Number(row.previsto||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${row.empresa}</td>
-            <td>R$ ${atual}</td>
-            <td><input type="text" class="moeda" data-empresa="${row.empresa}" placeholder="R$ 0,00"></td>
-          `;
-          tr.querySelector(".moeda").addEventListener("input", e => formatarMoeda(e.target));
-          tbody.appendChild(tr);
-        });
-      }catch(err){
-        tbody.innerHTML = `<tr><td colspan="3" style="color:red">Erro ao listar metas: ${err.message}</td></tr>`;
-      }
-    }
-
-    document.getElementById("formMetas").addEventListener("submit", async (e)=>{
-      e.preventDefault();
-      const btn = document.getElementById("btnSalvar");
-      const msg = document.getElementById("msg");
-      msg.textContent = "";
-      btn.disabled = true; btn.innerHTML = 'Salvando <span class="spinner"></span>';
-
-      const inputs = Array.from(document.querySelectorAll(".moeda"));
-      const payload = inputs
-        .map(i => ({ empresa: i.dataset.empresa, meta: moedaParaNumero(i.value) }))
-        .filter(x => x.meta > 0); // manda só os preenchidos
-
-      if(payload.length === 0){
-        msg.style.color = "red";
-        msg.textContent = "Informe pelo menos uma meta.";
-        btn.disabled = false; btn.textContent = "Salvar Metas";
-        return;
-      }
-
-      try{
-        // ⚠️ text/plain evita preflight/OPTIONS do navegador
-        const res = await fetch(ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ acao: "atualizarMetas", dados: payload })
-        });
-
-        // mesmo com text/plain o corpo é JSON, então dá pra ler:
-        const resp = await res.json();
-        msg.style.color = (resp.status === "ok") ? "green" : "red";
-        msg.textContent = resp.msg || "Operação concluída.";
-        if(resp.status === "ok") await carregarMetas();
-      }catch(err){
-        msg.style.color = "red";
-        msg.textContent = "Erro: " + err.message;
-      }finally{
-        btn.disabled = false; btn.textContent = "Salvar Metas";
-      }
-    });
-  </script>
 </body>
 </html>
