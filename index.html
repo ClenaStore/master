@@ -161,9 +161,16 @@
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({acao:"atualizarMetas",dados:novas})
       });
-      const resp = await res.json();
+let resp;
+try {
+  resp = await res.json();
+  document.getElementById("msg").style.color = resp.status === "ok" ? "green" : "red";
+  document.getElementById("msg").innerText = resp.msg;
+} catch(e) {
+  document.getElementById("msg").style.color = "red";
+  document.getElementById("msg").innerText = "Erro ao salvar: " + e.message;
+}
 
-      document.getElementById("msg").innerText = resp.msg;
 
       btn.innerHTML = originalText;
       btn.disabled = false;
