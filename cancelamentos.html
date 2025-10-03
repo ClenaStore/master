@@ -16,12 +16,23 @@
       width: 120px;
       padding: 5px;
       text-align: right;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
+    button.confirmar{
+      background:#1e40af;
+      color:white;
+      padding:8px 16px;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.confirmar:hover{background:#1d4ed8}
   </style>
 </head>
 <body>
 
-<!-- POPUP (abre direto nesta página) -->
 <div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
     <span class="fechar" onclick="fecharPopup()">✖</span>
@@ -123,7 +134,13 @@
           tr.innerHTML = `
             <td>${formatBR(d)}</td>
             <td>${c.empresa || ''}</td>
-            <td><input type="text" class="valor-edit" data-empresa="${c.empresa}" data-data="${d}" oninput="formatarMoeda(this)" /></td>`;
+            <td>
+              <input type="text" class="valor-edit" 
+                     data-empresa="${c.empresa}" 
+                     data-data="${d}" 
+                     placeholder="R$ 0,00" 
+                     oninput="formatarMoeda(this)" />
+            </td>`;
           elPend.appendChild(tr);
           totalLinhas++;
         });
