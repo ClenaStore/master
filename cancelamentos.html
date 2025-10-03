@@ -1,30 +1,34 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Painel ADM - Cancelamentos</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Cancelamentos</title>
   <style>
-    .sucesso { color: green; font-weight: bold; }
-    .erro { color: red; font-weight: bold; }
-    .hidden { display:none; }
+    body { font-family: Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; }
+    button { padding:10px 20px; background:#1e40af; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#3749db; }
+
+    /* POPUP */
+    .popup { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5);
+             display:none; align-items:center; justify-content:center; z-index:1000; }
+    .popup-content { background:#fff; padding:20px; border-radius:10px; max-width:800px; width:90%;
+                     max-height:90vh; overflow:auto; position:relative; }
+    .fechar { position:absolute; top:10px; right:15px; cursor:pointer; font-size:18px; color:#888; }
+    .fechar:hover { color:#000; }
+
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+    th { background:#1e40af; color:#fff; }
+
+    input { width:100%; padding:6px; }
+    .sucesso { color:green; margin-top:10px; }
+    .erro { color:red; margin-top:10px; }
   </style>
 </head>
 <body>
-  <aside>
-    <h2>☰ Menu</h2>
-    <button onclick="location.href='config.html'">⚙️ Configurações</button>
-  </aside>
 
-  <main>
-    <h1>Painel ADM</h1>
-    <section>
-      <div class="grid">
-        <div class="card" onclick="abrirPopupCancel()">🧾<br>Cancelamentos</div>
-      </div>
-    </section>
-  </main>
+  <button onclick="abrirPopup()">Gerenciar Cancelamentos</button>
 
   <!-- POPUP -->
   <div class="popup" id="popupCancel">
@@ -33,115 +37,88 @@
       <h2>Cancelamentos</h2>
 
       <table>
-        <thead>
-          <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-        </thead>
+        <thead><tr><th>Data</th><th>Empresa</th><th>Valor</th></tr></thead>
         <tbody id="tbodyCancel"></tbody>
       </table>
 
-      <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
-        <button class="confirmar" id="btnNovo">Adicionar Linha</button>
-        <button class="confirmar" id="btnSalvar">Salvar</button>
-        <span id="msg"></span>
-      </div>
+      <h3 style="margin-top:20px;">Adicionar novo</h3>
+      <table>
+        <tr>
+          <td><input type="date" id="novaData"></td>
+          <td><input type="text" id="novaEmpresa" placeholder="Empresa"></td>
+          <td><input type="number" step="0.01" id="novoValor" placeholder="Valor"></td>
+        </tr>
+      </table>
+      <button onclick="salvarCancelamento()">Salvar</button>
+      <div id="msg"></div>
     </div>
   </div>
 
-  <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyJn-tehEW9RIG5p-zP0iV5aX_9hEKU2wAaQ45E85sK6BU9p1aYCoX4aZz-94aTmlRyeQ/exec";
+<script>
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbwWbaN_11cEl5cl2wIRxERIeNe1pTFeYetwroOhVHBHy1k8-vcNwBM8iCCGQzJpa0Iztg/exec";
 
-    function abrirPopupCancel(){
-      document.getElementById("popupCancel").style.display="flex";
-      carregarCancelamentos();
-    }
-    function fecharPopup(){
-      document.getElementById("popupCancel").style.display="none";
-    }
+/* abrir e fechar */
+function abrirPopup(){ 
+  document.getElementById("popupCancel").style.display="flex"; 
+  carregarCancelamentos();
+}
+function fecharPopup(){ 
+  document.getElementById("popupCancel").style.display="none"; 
+}
 
-    function formatBR(dateStr){
-      if(!dateStr) return "";
-      const [y,m,d] = dateStr.split("-");
-      return `${d}/${m}/${y}`;
-    }
-    function maskMoeda(el){
-      let v = el.value.replace(/\D/g,"");
-      if(!v){ el.value=""; return; }
-      v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
-      v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
-      el.value="R$ "+v;
-    }
-    function toNumber(s){ return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0); }
-
-    async function carregarCancelamentos(){
-      const body = document.getElementById("tbodyCancel");
-      body.innerHTML = "<tr><td colspan=3>Carregando...</td></tr>";
-      try {
-        const res = await fetch(ENDPOINT+"?acao=listarcancelamentos",{cache:"no-store"});
-        const data = await res.json();
-        body.innerHTML = "";
-
-        if(data.status!=="ok"){
-          body.innerHTML = `<tr><td colspan=3 class="erro">${data.msg||"Erro"}</td></tr>`;
-          return;
-        }
-
-        data.dados.forEach(item=>{
-          const tr=document.createElement("tr");
-          tr.innerHTML=`
-            <td>${formatBR(item.data)}</td>
-            <td>${item.empresa}</td>
-            <td><input type="text" value="${item.valor? "R$ "+item.valor.toFixed(2).replace(".",","):""}"
-                class="moeda" data-empresa="${item.empresa}" data-data="${item.data}" 
-                ${item.valor? "disabled":""}></td>
-          `;
-          const inp=tr.querySelector("input.moeda");
-          if(!item.valor){ inp.addEventListener("input", ev=>maskMoeda(ev.target)); }
-          body.appendChild(tr);
-        });
-
-        if(!data.dados.length){
-          body.innerHTML = "<tr><td colspan=3>Nenhum registro</td></tr>";
-        }
-      }catch(err){
-        body.innerHTML=`<tr><td colspan=3 class="erro">Erro: ${err.message}</td></tr>`;
-      }
-    }
-
-    // botão adicionar linha
-    document.getElementById("btnNovo").onclick = ()=>{
-      const hoje=new Date().toISOString().split("T")[0];
+/* carregar dados */
+async function carregarCancelamentos(){
+  const tbody=document.getElementById("tbodyCancel");
+  tbody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
+  try{
+    const res=await fetch(ENDPOINT+"?acao=listarcancelamentos");
+    const js=await res.json();
+    if(js.status!=="ok"){ tbody.innerHTML="<tr><td colspan=3 class='erro'>"+js.msg+"</td></tr>"; return; }
+    if(js.dados.length===0){ tbody.innerHTML="<tr><td colspan=3>Nenhum registro</td></tr>"; return; }
+    tbody.innerHTML="";
+    js.dados.forEach(r=>{
       const tr=document.createElement("tr");
-      tr.innerHTML=`
-        <td>${formatBR(hoje)}</td>
-        <td><input type="text" placeholder="Empresa" class="empresa"></td>
-        <td><input type="text" placeholder="R$ 0,00" class="moeda" data-data="${hoje}"></td>
-      `;
-      tr.querySelector(".moeda").addEventListener("input",ev=>maskMoeda(ev.target));
-      document.getElementById("tbodyCancel").appendChild(tr);
-    };
+      tr.innerHTML=`<td>${r.data}</td><td>${r.empresa}</td><td>R$ ${r.valor.toFixed(2).replace(".",",")}</td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(err){
+    tbody.innerHTML="<tr><td colspan=3 class='erro'>Erro: "+err.message+"</td></tr>";
+  }
+}
 
-    // salvar
-    document.getElementById("btnSalvar").onclick = async ()=>{
-      const msg=document.getElementById("msg");
-      msg.textContent=""; msg.className="";
-      const linhas=[];
-      document.querySelectorAll("#tbodyCancel tr").forEach(tr=>{
-        const empresa=tr.querySelector(".empresa")?tr.querySelector(".empresa").value:tr.children[1].textContent;
-        const inp=tr.querySelector(".moeda");
-        const valor=toNumber(inp.value);
-        if(empresa && valor>0){
-          linhas.push({empresa,data:inp.dataset.data,valor});
-        }
-      });
-      if(!linhas.length){ msg.textContent="Nenhum valor preenchido"; msg.className="erro"; return; }
-      const r=await fetch(ENDPOINT,{
-        method:"POST",headers:{"Content-Type":"text/plain"},
-        body:JSON.stringify({acao:"registrarcancelamentos",linhas})
-      });
-      const js=await r.json();
-      if(js.status==="ok"){ msg.textContent="Salvo com sucesso"; msg.className="sucesso"; carregarCancelamentos(); }
-      else { msg.textContent=js.msg; msg.className="erro"; }
-    };
-  </script>
+/* salvar novo */
+async function salvarCancelamento(){
+  const msg=document.getElementById("msg");
+  msg.textContent=""; msg.className="";
+  const data=document.getElementById("novaData").value;
+  const empresa=document.getElementById("novaEmpresa").value.trim();
+  const valor=parseFloat(document.getElementById("novoValor").value);
+
+  if(!data || !empresa || isNaN(valor) || valor<=0){
+    msg.textContent="Preencha todos os campos corretamente."; msg.className="erro"; return;
+  }
+
+  try{
+    const res=await fetch(ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({acao:"registrarcancelamentos",linhas:[{data,empresa,valor}]})
+    });
+    const js=await res.json();
+    if(js.status==="ok"){ 
+      msg.textContent="Salvo com sucesso."; msg.className="sucesso"; 
+      document.getElementById("novaData").value="";
+      document.getElementById("novaEmpresa").value="";
+      document.getElementById("novoValor").value="";
+      carregarCancelamentos();
+    } else {
+      msg.textContent=js.msg; msg.className="erro";
+    }
+  }catch(err){
+    msg.textContent="Erro: "+err.message; msg.className="erro";
+  }
+}
+</script>
+
 </body>
 </html>
