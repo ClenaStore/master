@@ -12,25 +12,16 @@
     .muted{color:#64748b}
     .link{cursor:pointer;color:#4f46e5;font-weight:600;text-decoration:none}
     .link:hover{text-decoration:underline}
-    input.valor-edit {
-      width: 90px;
+    input.valor-edit{
+      width: 120px;
+      padding: 5px;
       text-align: right;
-      padding: 3px;
-    }
-    .btn {
-      margin-top: 12px;
-      background:#4f46e5;
-      color:#fff;
-      border:none;
-      padding:8px 14px;
-      border-radius:4px;
-      cursor:pointer;
     }
   </style>
 </head>
 <body>
 
-<!-- POPUP -->
+<!-- POPUP (abre direto nesta página) -->
 <div class="popup" id="popupCancelamentos" style="display:flex">
   <div class="popup-content">
     <span class="fechar" onclick="fecharPopup()">✖</span>
@@ -46,8 +37,6 @@
       </tbody>
     </table>
 
-    <button class="btn" onclick="salvarPendentes()">Salvar</button>
-
     <div style="margin:10px 0">
       <a id="btnToggleLanc" class="link" href="#" onclick="toggleLancados(event)">+ Ver lançados</a>
     </div>
@@ -60,6 +49,10 @@
         <tr><td colspan="3" class="info">—</td></tr>
       </tbody>
     </table>
+
+    <div style="margin-top:15px;text-align:center">
+      <button onclick="salvarPendentes()" class="confirmar">Salvar</button>
+    </div>
 
     <div id="msg" class="muted" style="margin-top:10px"></div>
   </div>
@@ -92,6 +85,19 @@
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  function formatarMoeda(input) {
+    let valor = input.value.replace(/\D/g, ""); 
+    if (!valor) {
+      input.value = "";
+      return;
+    }
+    valor = (parseInt(valor, 10) / 100).toFixed(2); 
+    input.value = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valor);
+  }
+
   async function carregarPendentes(){
     elPend.innerHTML = `<tr><td colspan="3" class="info">Carregando…</td></tr>`;
     elMsg.textContent = '';
@@ -117,7 +123,7 @@
           tr.innerHTML = `
             <td>${formatBR(d)}</td>
             <td>${c.empresa || ''}</td>
-            <td><input type="number" step="0.01" class="valor-edit" data-empresa="${c.empresa}" data-data="${d}" /></td>`;
+            <td><input type="text" class="valor-edit" data-empresa="${c.empresa}" data-data="${d}" oninput="formatarMoeda(this)" /></td>`;
           elPend.appendChild(tr);
           totalLinhas++;
         });
@@ -182,13 +188,17 @@
     const linhas = [];
 
     inputs.forEach(inp => {
-      if (inp.value && !isNaN(inp.value)) {
-        linhas.push({
-          empresa: inp.dataset.empresa,
-          data: inp.dataset.data,
-          valor: parseFloat(inp.value),
-          item: "Itens diversos"
-        });
+      if (inp.value) {
+        let valorNum = inp.value.replace(/[^\d,]/g, "").replace(",", ".");
+        valorNum = parseFloat(valorNum);
+        if (!isNaN(valorNum)) {
+          linhas.push({
+            empresa: inp.dataset.empresa,
+            data: inp.dataset.data,
+            valor: valorNum,
+            item: "Itens diversos"
+          });
+        }
       }
     });
 
@@ -207,6 +217,8 @@
       if(js.status !== 'ok') throw new Error(js.msg);
       alert("Registros salvos!");
       carregarPendentes();
+      lancadosCarregados = false;
+      carregarLancados();
     }catch(err){
       alert("Erro ao salvar: " + err.message);
     }
@@ -217,4 +229,3 @@
 
 </body>
 </html>
-
