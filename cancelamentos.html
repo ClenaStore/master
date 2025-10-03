@@ -1,74 +1,74 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Cancelamentos</title>
   <style>
-    body{margin:0;font-family:Arial;background:#f3f4f6}
+    body{margin:0;font-family:Arial,sans-serif}
     .overlay{
       position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;
     }
     .popup{
-      background:#fff;padding:20px;border-radius:8px;max-width:800px;width:90%;max-height:90%;
-      overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.25)
+      background:#fff;padding:20px;border-radius:8px;width:90%;max-width:900px;
+      max-height:90%;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.25)
     }
-    .popup h2{margin:0 0 15px}
+    h2{margin-top:0}
     .fechar{float:right;cursor:pointer;font-size:18px}
+
     table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #ddd;padding:6px;text-align:center}
+    th,td{border:1px solid #ddd;padding:8px;text-align:center}
     th{background:#173ea5;color:#fff}
-    .hidden{display:none}
-    .btn{background:#173ea5;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer}
-    .btn:disabled{background:#999}
-    .link{color:#173ea5;cursor:pointer;font-size:14px;display:block;margin-top:8px}
-    #msg{margin-left:10px;font-weight:bold}
-    .sucesso{color:green}.erro{color:red}
+
+    .btn{
+      background:#173ea5;color:#fff;border:none;padding:8px 16px;
+      border-radius:6px;cursor:pointer;margin-top:10px
+    }
+    .btn:hover{opacity:.9}
+    .toggle{color:#173ea5;cursor:pointer;font-size:14px;margin:6px 0;display:inline-block}
+    .sucesso{color:green;margin-left:10px}
+    .erro{color:red;margin-left:10px}
+    .moeda{width:100px;text-align:right;padding-right:6px}
   </style>
 </head>
 <body>
-<div class="overlay">
-  <div class="popup">
-    <span class="fechar" onclick="window.location.href='config.html'">✖</span>
-    <h2>Cancelamentos</h2>
+  <div class="overlay">
+    <div class="popup">
+      <span class="fechar" onclick="window.parent.postMessage('fecharCancel','*')">✖</span>
+      <h2>Cancelamentos</h2>
 
-    <table>
-      <thead>
-        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-      </thead>
-      <tbody id="tbodyPend"></tbody>
-    </table>
+      <table>
+        <thead><tr><th>Data</th><th>Empresa</th><th>Valor</th></tr></thead>
+        <tbody id="tbodyPend"></tbody>
+      </table>
 
-    <span id="toggleLancados" class="link" onclick="toggleLancados()">+ Mostrar lançados</span>
+      <span class="toggle" onclick="toggleLancados()" id="toggleLanc">+ Mostrar lançados</span>
+      <table id="tabelaLancados" style="display:none">
+        <thead><tr><th>Data</th><th>Empresa</th><th>Valor</th></tr></thead>
+        <tbody id="tbodyLanc"></tbody>
+      </table>
 
-    <table id="tbLancados" class="hidden">
-      <thead>
-        <tr><th>Data</th><th>Empresa</th><th>Valor</th></tr>
-      </thead>
-      <tbody id="tbodyLanc"></tbody>
-    </table>
-
-    <div style="margin-top:10px">
-      <button id="btnSalvar" class="btn">Salvar</button>
-      <span id="msg"></span>
+      <div style="margin-top:10px">
+        <button class="btn" onclick="salvar()">Salvar</button>
+        <span id="msg"></span>
+      </div>
     </div>
   </div>
-</div>
 
 <script>
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbzT5s59n8ymg3e8lptDNvMU8AIvlxm4czi5LLOikkttwRThb7HQrut_yxcPWYdzmEcV3g/exec";
+const ENDPOINT="https://script.google.com/macros/s/AKfycbxJGO8cZCrBqNgrFkimXFTFyueugmJI3s3AlTe_NwnLxACaFAICgeOtlGXmBZxB9EI1ag/exec";
 
-// formata R$ para entrada
 function maskMoeda(el){
-  let v = el.value.replace(/\D/g,"");
-  if(!v){ el.value=""; return; }
+  let v=el.value.replace(/\D/g,"");
+  if(!v){el.value="";return;}
   v=(parseInt(v,10)/100).toFixed(2).replace(".",",");
   v=v.replace(/\B(?=(\d{3})+(?!\d))/g,".");
   el.value="R$ "+v;
 }
-function toNumber(s){ return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0); }
-function fmtBR(d){ const p=d.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+function toNumber(s){return Number((s||"").replace(/[R$\s\.]/g,"").replace(",",".")||0);}
+function ymd(d){return d.toISOString().split("T")[0];}
+function dmy(s){let [y,m,d]=s.split("-");return `${d}/${m}/${y}`;}
 
 async function carregar(){
   const pendBody=document.getElementById("tbodyPend");
@@ -76,71 +76,61 @@ async function carregar(){
   pendBody.innerHTML="<tr><td colspan=3>Carregando...</td></tr>";
 
   try{
-    const [pendRes,lancRes] = await Promise.all([
-      fetch(ENDPOINT+"?acao=statuscancelamentos").then(r=>r.json()),
-      fetch(ENDPOINT+"?acao=listarcancelamentos").then(r=>r.json())
-    ]);
-
+    const resPend=await fetch(ENDPOINT+"?acao=statuscancelamentos");
+    const pend=await resPend.json();
     pendBody.innerHTML="";
-    lancBody.innerHTML="";
-
-    // pendentes
-    (pendRes.companies||[]).forEach(c=>{
-      c.pendentes.forEach(d=>{
+    (pend.companies||[]).forEach(c=>{
+      (c.pendentes||[]).forEach(dt=>{
         const tr=document.createElement("tr");
-        tr.innerHTML=`<td>${fmtBR(d)}</td>
-                      <td>${c.empresa}</td>
-                      <td><input data-empresa="${c.empresa}" data-data="${d}" class="moeda" placeholder="R$ 0,00"></td>`;
+        tr.innerHTML=`<td>${dmy(dt)}</td><td>${c.empresa}</td>
+          <td><input class="moeda" data-empresa="${c.empresa}" data-data="${dt}" placeholder="R$ 0,00"></td>`;
         tr.querySelector("input").addEventListener("input",ev=>maskMoeda(ev.target));
         pendBody.appendChild(tr);
       });
     });
-    if(!pendBody.children.length) pendBody.innerHTML="<tr><td colspan=3>Sem pendências</td></tr>";
+    if(!pendBody.children.length){
+      pendBody.innerHTML="<tr><td colspan=3>Sem pendências</td></tr>";
+    }
 
-    // lançados
-    (lancRes.dados||[]).forEach(l=>{
+    // já lançados
+    const resLanc=await fetch(ENDPOINT+"?acao=listarcancelamentos");
+    const lanc=await resLanc.json();
+    lancBody.innerHTML="";
+    (lanc.dados||[]).forEach(l=>{
       const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${fmtBR(l.data)}</td>
-                    <td>${l.empresa}</td>
-                    <td><input disabled value="R$ ${l.valor.toFixed(2).replace('.',',')}"></td>`;
+      tr.innerHTML=`<td>${dmy(l.data)}</td><td>${l.empresa}</td><td>R$ ${l.valor.toLocaleString("pt-BR",{minimumFractionDigits:2})}</td>`;
       lancBody.appendChild(tr);
     });
-
   }catch(err){
     pendBody.innerHTML=`<tr><td colspan=3 style="color:red">Erro: ${err.message}</td></tr>`;
   }
 }
 
 function toggleLancados(){
-  const tb=document.getElementById("tbLancados");
-  const link=document.getElementById("toggleLancados");
-  if(tb.classList.contains("hidden")){
-    tb.classList.remove("hidden");
-    link.textContent="- Ocultar lançados";
-  }else{
-    tb.classList.add("hidden");
-    link.textContent="+ Mostrar lançados";
-  }
+  const tbl=document.getElementById("tabelaLancados");
+  const tgl=document.getElementById("toggleLanc");
+  if(tbl.style.display==="none"){tbl.style.display="table";tgl.textContent="- Ocultar lançados";}
+  else{tbl.style.display="none";tgl.textContent="+ Mostrar lançados";}
 }
 
-document.getElementById("btnSalvar").onclick=async ()=>{
-  const msg=document.getElementById("msg");
-  msg.textContent="";
+async function salvar(){
+  const msg=document.getElementById("msg"); msg.textContent="";
   const linhas=[];
   document.querySelectorAll(".moeda").forEach(i=>{
     const v=toNumber(i.value);
     if(v>0) linhas.push({empresa:i.dataset.empresa,valor:v,data:i.dataset.data});
   });
-  if(!linhas.length){ msg.textContent="Preencha valores"; msg.className="erro"; return; }
-
-  const r=await fetch(ENDPOINT,{
-    method:"POST",headers:{"Content-Type":"text/plain"},
-    body:JSON.stringify({acao:"registrarcancelamentos",data:linhas[0].data,linhas})
-  });
-  const js=await r.json();
-  if(js.status==="ok"){ msg.textContent="Sucesso"; msg.className="sucesso"; carregar(); }
-  else{ msg.textContent=js.msg; msg.className="erro"; }
-};
+  if(!linhas.length){msg.textContent="Preencha valores";msg.className="erro";return;}
+  try{
+    const r=await fetch(ENDPOINT,{
+      method:"POST",headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify({acao:"registrarcancelamentos",linhas})
+    });
+    const js=await r.json();
+    if(js.status==="ok"){msg.textContent="Sucesso";msg.className="sucesso";carregar();}
+    else{msg.textContent=js.msg;msg.className="erro";}
+  }catch(err){msg.textContent=err.message;msg.className="erro";}
+}
 
 carregar();
 </script>
