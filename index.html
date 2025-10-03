@@ -16,9 +16,10 @@
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
     .card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.1);cursor:pointer;text-align:center;font-weight:bold;color:#1e3a8a}
     .card:hover{background:#f0f4ff}
+
     /* POPUP */
-    .popup{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
-    .popup-content{background:#fff;padding:20px;border-radius:10px;max-width:800px;width:90%;max-height:90vh;overflow:auto}
+    .popup{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000}
+    .popup-content{background:#fff;padding:20px;border-radius:10px;max-width:800px;width:90%;max-height:90vh;overflow:auto;position:relative}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #ddd;padding:10px;text-align:center}
     th{background:#1e40af;color:#fff}
@@ -27,6 +28,37 @@
     button.confirmar:hover{background:#3749db}
     .fechar{float:right;cursor:pointer;color:#888;font-size:18px}
     .fechar:hover{color:#000}
+
+    /* Overlay Global */
+    #overlayGlobal {
+      display:none;
+      position:fixed;
+      top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,.5);
+      z-index:2000;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:20px;
+      font-weight:bold;
+    }
+
+    /* Spinner no botão */
+    .spinner {
+      border:3px solid #f3f3f3;
+      border-top:3px solid #fff;
+      border-radius:50%;
+      width:16px;
+      height:16px;
+      animation:spin 1s linear infinite;
+      display:inline-block;
+      vertical-align:middle;
+      margin-left:8px;
+    }
+    @keyframes spin {
+      0% { transform:rotate(0deg);}
+      100% { transform:rotate(360deg);}
+    }
   </style>
 </head>
 <body>
@@ -45,7 +77,6 @@
       <h2>Configurações</h2>
       <div class="grid">
         <div class="card" onclick="abrirPopup()">📊 Metas</div>
-        <!-- futuro: outros cards ex: Limites, Alertas -->
       </div>
     </section>
   </main>
@@ -74,8 +105,11 @@
     </div>
   </div>
 
+  <!-- Overlay Global -->
+  <div id="overlayGlobal">⏳ Carregando...</div>
+
   <script>
-    const ENDPOINT = "https://script.google.com/macros/s/AKfycbxjdMQCj9eQRvOHFDlHytZLRX_50QdleV14WZtwcB8a6Q_hHibhIKW_Bk9hO_Qy_bw5Yw/exec"; // substituir pelo seu GAS publicado
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycby9m02Y1Csli6IZVhAa0CRvm9HDVd71rNQZTV8oJwHbTPtlxEbRhjvDEQMLUfUza6ui/exec"; // colocar URL do GAS publicado
 
     function abrirModulo(id){
       document.querySelectorAll(".modulo").forEach(sec=>sec.style.display="none");
@@ -91,8 +125,13 @@
       document.getElementById("popupMetas").style.display="none";
     }
 
+    // Overlay global
+    function mostrarOverlay(){ document.getElementById("overlayGlobal").style.display="flex"; }
+    function esconderOverlay(){ document.getElementById("overlayGlobal").style.display="none"; }
+
     // Carregar metas atuais da planilha
     async function carregarMetas(){
+      mostrarOverlay();
       const res = await fetch(ENDPOINT+"?acao=listarMetas");
       const data = await res.json();
       const tbody = document.getElementById("tabelaMetas");
@@ -106,11 +145,17 @@
           </tr>
         `;
       });
+      esconderOverlay();
     }
 
     // Salvar novas metas
     document.getElementById("formMetas").addEventListener("submit", async (e)=>{
       e.preventDefault();
+      const btn = e.target.querySelector("button.confirmar");
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Salvando <span class="spinner"></span>';
+      btn.disabled = true;
+
       const inputs = document.querySelectorAll("input[name='novaMeta']");
       let novas = [];
       inputs.forEach(i=>{
@@ -125,8 +170,13 @@
         body:JSON.stringify({acao:"atualizarMetas",dados:novas})
       });
       const resp = await res.json();
+
       document.getElementById("msg").innerText = resp.msg;
-      carregarMetas(); // atualiza a tabela
+
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+
+      carregarMetas();
     });
   </script>
 </body>
